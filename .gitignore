@@ -1,4 +1,5 @@
-# object files
+
+externals/*
 *.o
 *.so
 *.bak
