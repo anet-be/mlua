@@ -2,36 +2,43 @@
 
 CC=gcc
 
-YDB_DIST=$(shell pkg-config --variable=prefix yottadb)
+YDB_DIST := $(shell pkg-config --variable=prefix yottadb)
 
-CFLAGS=-std=c99 -pedantic -Wall -Wno-unknown-pragmas
-YDB_FLAGS=$(shell pkg-config --cflags yottadb)
+YDB_FLAGS := $(shell pkg-config --cflags yottadb)
+CFLAGS := -std=c99 -pedantic -Wall -Wno-unknown-pragmas -Iexternals/ $(YDB_FLAGS)
 
-FETCH_LIBREADLINE=$(if $(shell which apt-get), sudo apt-get install libreadline-dev, sudo yum install readline-devel)
+# Define which Lua versions to build against
+LUAS := lua-5.4.4 lua-5.3.6 lua-5.2.4
 
-all: build
+# Decide whether to use apt-get or yum to get readline lib
+FETCH_LIBREADLINE := $(if $(shell which apt-get), sudo apt-get install libreadline-dev, sudo yum install readline-devel)
+
+all: try
 
 build: mlua.so
 
-try: try.c
-	$(CC) $< -o $@  $(YDB_FLAGS) $(CFLAGS)
+%: %.c
+	$(CC) $< -o $@  $(CFLAGS)
 
 mlua.o: mlua.c
-	$(CC) $<  -c -fPIC $(YDB_FLAGS) $(CFLAGS)
+	$(CC) $<  -c -fPIC $(CFLAGS)
 
 mlua.so: mlua.o
 	$(CC) $< -o $@  -shared
 
-# Fetch lua builds if necessary
-lua: lua5.4 lua5.3 lua5.2
-lua5.4: externals/lua-5.4.4/src/lua
-lua5.3: /usr/include/readline/readline.h externals/lua-5.3.6/src/lua
-lua5.2: /usr/include/readline/readline.h externals/lua-5.2.4/src/lua
+# Fetch lua builds if we haven't yet
+lua: $(LUAS)
+lua-5%: externals/lua-5%/src/lua ;
+
+# extra dependency for older versions of lua
+lua-5.3.%: /usr/include/readline/readline.h externals/lua-5.3.%/src/lua ;
+lua-5.2.%: /usr/include/readline/readline.h externals/lua-5.2.%/src/lua ;
 
 externals/lua-%/src/lua: externals/lua-%/Makefile
 	@echo Building $@
 	make --directory=externals/lua-$* linux test
 	@echo
+.PRECIOUS: externals/lua-%/src/lua
 
 externals/lua-%/Makefile:
 	@echo Fetching $@
@@ -40,10 +47,12 @@ externals/lua-%/Makefile:
 	tar --directory=externals -zxf $@.tar.gz
 	rm -f $@.tar.gz
 	@echo
+.PRECIOUS: externals/lua-%/Makefile
 
 /usr/include/readline/readline.h:
-	@echo "Installing readline development library required by builds of lua <5.4
+	@echo "Installing readline development library required by builds of lua <5.4"
 	$(FETCH_LIBREADLINE)
+.PRECIOUS: /usr/include/readline/readline.h
 
 # clean just our build
 clean:
