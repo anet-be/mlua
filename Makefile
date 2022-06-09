@@ -5,7 +5,8 @@ CC=gcc
 YDB_DIST := $(shell pkg-config --variable=prefix yottadb)
 
 YDB_FLAGS := $(shell pkg-config --cflags yottadb)
-CFLAGS := -std=c99 -pedantic -Wall -Wno-unknown-pragmas -Iexternals/ $(YDB_FLAGS)
+LUA_FLAGS := externals/lua
+CFLAGS := -std=c99 -pedantic -Wall -Wno-unknown-pragmas -Iexternals/ $(YDB_FLAGS) $(LUA_FLAGS)
 
 # Define which Lua versions to build against
 LUAS := lua-5.4.4 lua-5.3.6 lua-5.2.4
@@ -34,7 +35,7 @@ lua-5%: externals/lua-5%/src/lua ;
 lua-5.3.%: /usr/include/readline/readline.h externals/lua-5.3.%/src/lua ;
 lua-5.2.%: /usr/include/readline/readline.h externals/lua-5.2.%/src/lua ;
 
-externals/lua-%/src/lua: externals/lua-%/Makefile
+externals/lua-%/src/lua: externals/lua-%/Makefile ;
 	@echo Building $@
 	make --directory=externals/lua-$* linux test
 	@echo
