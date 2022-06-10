@@ -1,18 +1,20 @@
 # Makefile to build MLua
 
-CC=gcc
+CC = gcc
 
-YDB_DIST := $(shell pkg-config --variable=prefix yottadb)
+YDB_DIST = $(shell pkg-config --variable=prefix yottadb)
 
-YDB_FLAGS := $(shell pkg-config --cflags yottadb)
-LUA_FLAGS := -Ibuild/lua-5.4.4/install/include -Wl,--library-path=build/lua-5.4.4/install/lib -Wl,-l:liblua.a
-CFLAGS := -std=c99 -pedantic -Wall -Wno-unknown-pragmas  $(YDB_FLAGS) $(LUA_FLAGS)
+YDB_FLAGS = $(shell pkg-config --cflags yottadb)
+LUA_FLAGS = -Ibuild/lua-5.4.4/install/include -Wl,--library-path=build/lua-5.4.4/install/lib -l:liblua.a
+LIBS = -lm -ldl
+CFLAGS = -std=c99 -pedantic -Wall -Wno-unknown-pragmas  $(YDB_FLAGS) $(LUA_FLAGS) $(LIBS)
 
 # Define which Lua versions to download and build against
-LUAS := lua-5.4.4 #lua-5.3.6 lua-5.2.4
+# Works with lua >=5.2; older versions' makefiles differ enough that we'd have to change our invokation.
+LUAS = lua-5.4.4 lua-5.3.6 lua-5.2.4
 
 # Decide whether to use apt-get or yum to get readline lib
-FETCH_LIBREADLINE := $(if $(shell which apt-get), sudo apt-get install libreadline-dev, sudo yum install readline-devel)
+FETCH_LIBREADLINE = $(if $(shell which apt-get), sudo apt-get install libreadline-dev, sudo yum install readline-devel)
 
 all: try
 
@@ -29,15 +31,12 @@ mlua.so: mlua.o
 
 # Fetch lua builds if we haven't yet
 lua: $(LUAS)
-lua-5%: build/lua-5%/src/lua ;
-
-# extra dependency for older versions of lua
-lua-5.3.%: /usr/include/readline/readline.h build/lua-5.3.%/src/lua ;
-lua-5.2.%: /usr/include/readline/readline.h build/lua-5.2.%/src/lua ;
+lua-%: /usr/include/readline/readline.h  build/lua-%/src/lua  ;
 
 build/lua-%/src/lua: build/lua-%/Makefile ;
 	@echo Building $@
-	make --directory=build/lua-$* linux test local
+	# ensure readline is included for all versions (anticipating an 'mlua' tool which will be interactive lua connected to ydb)
+	$(MAKE) --directory=build/lua-$*  linux  test local  SYSCFLAGS="-DLUA_USE_LINUX -DLUA_USE_READLINE" SYSLIBS="-Wl,-E -ldl -lreadline"
 	@echo
 .PRECIOUS: build/lua-%/src/lua
 
@@ -51,7 +50,7 @@ build/lua-%/Makefile:
 .PRECIOUS: build/lua-%/Makefile
 
 /usr/include/readline/readline.h:
-	@echo "Installing readline development library required by builds of lua <5.4"
+	@echo "Installing readline"
 	$(FETCH_LIBREADLINE)
 .PRECIOUS: /usr/include/readline/readline.h
 

@@ -3,6 +3,7 @@ externals/*
 *.o
 *.so
 *.bak
+try
 
 # Compiled Python bytecode
 *.py[cod]
