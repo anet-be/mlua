@@ -7,7 +7,7 @@ YDB_DIST = $(shell pkg-config --variable=prefix yottadb)
 YDB_FLAGS = $(shell pkg-config --cflags yottadb)
 LUA_FLAGS = -Ibuild/lua-5.4.4/install/include -Wl,--library-path=build/lua-5.4.4/install/lib -l:liblua.a
 LIBS = -lm -ldl
-CFLAGS = -std=c99 -pedantic -Wall -Wno-unknown-pragmas  $(YDB_FLAGS) $(LUA_FLAGS) $(LIBS)
+CFLAGS = -fPIC -std=c99 -pedantic -Wall -Wno-unknown-pragmas  $(YDB_FLAGS) $(LUA_FLAGS) $(LIBS)
 
 # Define which Lua versions to download and build against
 # Works with lua >=5.2; older versions' makefiles differ enough that we'd have to change our invokation.
@@ -29,16 +29,18 @@ mlua.o: mlua.c
 mlua.so: mlua.o
 	$(CC) $< -o $@  -shared
 
-# Fetch lua builds if we haven't yet
-lua: $(LUAS)
-lua-%: /usr/include/readline/readline.h  build/lua-%/src/lua  ;
+# Fetch lua versions and build them
+luas: $(LUAS)
+lua-%: /usr/include/readline/readline.h  build/lua-%/install/lib/liblua.so  ;
 
-build/lua-%/src/lua: build/lua-%/Makefile ;
+build/lua-%/install/lib/liblua.so: build/lua-%/Makefile
 	@echo Building $@
+	# tweak the standard Lua build with flags to make sure we can make a shared library (-fPIC)
 	# ensure readline is included for all versions (anticipating an 'mlua' tool which will be interactive lua connected to ydb)
-	$(MAKE) --directory=build/lua-$*  linux  test local  SYSCFLAGS="-DLUA_USE_LINUX -DLUA_USE_READLINE" SYSLIBS="-Wl,-E -ldl -lreadline"
+	$(MAKE) --directory=build/lua-$*  linux  test local  MYCFLAGS="-fPIC"  MYLIBS="-Wl,-lreadline"  SYSCFLAGS="-DLUA_USE_LINUX -DLUA_USE_READLINE"
+	cd build/lua-$*/install/lib  &&  $(CC) -shared -o liblua.so  -Wl,--whole-archive  liblua.a  -Wl,--no-whole-archive
 	@echo
-.PRECIOUS: build/lua-%/src/lua
+.PRECIOUS: build/lua-%/install/lib/liblua.so
 
 build/lua-%/Makefile:
 	@echo Fetching $@
@@ -59,8 +61,14 @@ clean:
 	rm -f *.o *.so try
 	rm -rf tests
 
-# clean build (e.g. lua), too
-clean-all: clean
+clean-luas: $(patsubst lua-%,clean-lua-%,$(LUAS)) ;
+clean-lua-%: build/lua-%/README
+	$(MAKE) --directory=build/lua-$* clean
+	rm -rf build/lua-$*/install
+.PRECIOUS: build/lua-%/README
+
+# clean whole build directory including external downloads as if we'd initially checked out the source
+refresh: clean
 	rm -rf build
 
 test:
@@ -71,4 +79,4 @@ test:
 install: mlua.so mlua.xc
 	sudo cp mlua.so mlua.xc $(YDB_DIST)/plugin
 
-.PHONY: install test clean clean-all lua build
+.PHONY: luas build test install  clean clean-luas clean-luas-% refresh
