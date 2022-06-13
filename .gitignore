@@ -1,5 +1,5 @@
 build/*
-externals/*
+tests/*
 *.o
 *.so
 *.bak
