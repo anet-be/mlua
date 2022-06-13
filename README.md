@@ -2,9 +2,9 @@
 
 ## Overview
 
-MLua is a Lua language plugin the MUMPS database. It can be invoked and passed data from M, or it can be invoked directly from the OS and can in turn load M. MLua was written by Berwyn Hoyt and sponsored by the University of Antwerp Library. It is provided under the same license as Yottadb: the GNU Affero General Public License version 3.
-
-MLua is compatible with Lua >= 5.2. Older versions may work but are untested and would have to be built manually since the MLua Makefile does not know how to build them.
+MLua is a Lua language plugin the MUMPS database. It provides the means to call Lua from whitin M. Here is
+[more complete documentation](https://dev.anet.be/doc/brocade/mlua/html/index.html)
+of where this project is headed. MLua is compatible with Lua versions >= 5.2. Older versions may work but are untested and would have to be built manually since the MLua Makefile does not know how to build them.
 
 Basic operation is shown below:
 
@@ -21,7 +21,9 @@ Basic operation is shown below:
     YDB>
 ```
 
-Note that the .output parameter will contain any Lua error messages. It is optional.
+Note that the optional .output parameter will contain any Lua error messages.
+
+MLua was written by Berwyn Hoyt and sponsored by the University of Antwerp Library. It is provided under the same license as Yottadb: the GNU Affero General Public License version 3.
 
 
 ## Installation
