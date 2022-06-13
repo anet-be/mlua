@@ -8,10 +8,10 @@ MLua is compatible with Lua >= 5.2. Older versions may work but are untested and
 
 Basic operation is shown below:
 
-```
+```shell
     $ ydb
 
-    YDB>set status=$&mlua.lua("print('\nHello World!')",.output)
+    YDB>do &mlua.lua("print('\nHello World!')",.output)
     Hello world!
 
 
@@ -35,10 +35,10 @@ Note that the .output parameter will contain any Lua error messages. It is optio
 
 If you need to use a different Lua version or install into a non-standard YDB directory, change the last line to:
 ```shell
-    sudo make install [WORKING_LUA=lua-5.x.x] [INSTALL_DIR=<your_ydb_plugin_directory>]
+    sudo make install WORKING_LUA=lua-5.x.x INSTALL_DIR=<your_ydb_plugin_directory>
 ```
 
-MLua is implemented as a shared library mlua.so which embeds mlua along with embedded Lua and the Lua library. There is no need to install Lua separately.
+MLua is implemented as a shared library mlua.so which also embeds Lua and the Lua library. There is no need to install Lua separately.
 
 
 ### Explanation
