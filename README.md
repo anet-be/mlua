@@ -11,7 +11,7 @@ Basic operation is shown below:
 ```
     $ ydb
 
-    YDB>set status=$&mlua.lua("print('\nHello World!",.output)
+    YDB>set status=$&mlua.lua("print('\nHello World!')",.output)
     Hello world!
 
 
@@ -21,7 +21,7 @@ Basic operation is shown below:
     YDB>
 ```
 
-Note that the .output parameter is optional. It will contain any Lua error messages.
+Note that the .output parameter will contain any Lua error messages. It is optional.
 
 
 ## Installation
