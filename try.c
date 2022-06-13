@@ -12,7 +12,7 @@ int main (void) {
   char buff[256];
   int error;
 
-  printf("Mlua version %s\n", MLUA_VERSION_STRING);
+  printf("MLua version %s\n", MLUA_VERSION_STRING);
 
   lua_State *L = luaL_newstate();  // opens Lua
   luaL_openlibs(L);   // opens the basic library
