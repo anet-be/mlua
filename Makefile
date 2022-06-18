@@ -34,11 +34,11 @@ FETCH_LIBREADLINE = $(if $(shell which apt-get), sudo apt-get install libreadlin
 .DELETE_ON_ERROR:
 
 
-all: luas build
+all: luas build try
 
 build: mlua.so
 
-%: %.c mlua.so $(LIBLUA)
+%: %.c *.h mlua.so $(LIBLUA)
 	$(CC) $< -o $@  $(CFLAGS)
 
 mlua.o: mlua.c $(WORKING_LUA)

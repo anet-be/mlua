@@ -8,11 +8,12 @@
 
 #include "mlua.h"
 
+
 int main (void) {
   char buff[256];
   int error;
 
-  printf("MLua version %s\n", MLUA_VERSION_STRING);
+  printf("MLua version %s (%06u)\n", MLUA_VERSION_STRING, MLUA_VERSION_NUMBER);
 
   lua_State *L = luaL_newstate();  // opens Lua
   luaL_openlibs(L);   // opens the basic library

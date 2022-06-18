@@ -13,18 +13,18 @@ void mlua_close(int _argc);
 gtm_int_t mlua_version_number(int _argc);   // return version of this module as a decimal number AABBCC where AA=major; BB=minor; CC=release
 
 
-// Version defines
-#define MLUA_VERSION_MAJOR    0
-#define MLUA_VERSION_MINOR    1
-#define MLUA_VERSION_RELEASE  1
-// Version number, encoded as two digits each AABBCC
-#define MLUA_VERSION_NUMBER  (MLUA_VERSION_MAJOR *100*100 + MLUA_VERSION_MINOR *100 + MLUA_VERSION_RELEASE)
-// Version number, encoded as a string A.B.C
-#define _STRINGIFY(s) #s
-#define STRINGIFY(s) _STRINGIFY(s)
-#define MLUA_VERSION_STRING STRINGIFY(MLUA_VERSION_MAJOR) "." STRINGIFY(MLUA_VERSION_MINOR) "." STRINGIFY(MLUA_VERSION_RELEASE)
-
 #define OUTPUT_STRING_MAXIMUM_LENGTH 1000
+
+
+// Define version: Maj,Min,Release
+#define MLUA_VERSION 0,1,1
+#define MLUA_VERSION_STRING   WRAP_PARAMETER(CREATE_VERSION_STRING, MLUA_VERSION)
+#define MLUA_VERSION_NUMBER   WRAP_PARAMETER(CREATE_VERSION_NUMBER, MLUA_VERSION)
+
+// Version creation helper macros
+#define WRAP_PARAMETER(macro, param) macro(param)
+#define CREATE_VERSION_STRING(major, minor, release) #major "." #minor "." #release
+#define CREATE_VERSION_NUMBER(major, minor, release) ((major)*100*100 + (minor)*100 + (release))
 
 
 #endif // MLUA_H
