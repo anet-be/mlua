@@ -10,6 +10,9 @@
 
 #include "mlua.h"
 
+// For one Lua instance per process, this works, since each process gets new shared library globals.
+// But to make MUMPS support multiple simultaneous Lua instances,
+// we'd need to return this handle to the user instead of making it a global.
 lua_State *Lua = NULL;
 
 void mlua_open(int _argc) {
@@ -25,8 +28,10 @@ gtm_status_t mlua(int argc, const gtm_string_t *code, gtm_char_t *outstr) {
   }
   if (Lua == NULL)
     mlua_open(0);
-  int error = luaL_loadbuffer(Lua, code->address, code->length, "line")
-                || lua_pcall(Lua, 0, 0, 0);
+  int args=0, results=0;
+  int error_handler=0;
+  int error = luaL_loadbuffer(Lua, code->address, code->length, "mlua(code)")
+                || lua_pcall(Lua, args, results, error_handler);
   if (argc>=2)
     outstr[0] = '\0';   // in case there is no error, set outstr to empty string
   if (error) {
