@@ -25,7 +25,7 @@ Note that the optional .output parameter will contain any Lua error messages.
 
 MLua's primary author is Berwyn Hoyt. It was sponsored by, and is copyright © 2022, [University of Antwerp Library](https://www.uantwerpen.be/en/library/). It is provided under the same license as YottaDB: the [GNU Affero General Public License version 3](https://www.gnu.org/licenses/agpl-3.0.txt).
 
-MLua also uses [Lua](https://www.lua.org/) (copyright © 1994–2021 Lua.org, PUC-Rio) and [YottaDB](https://gitlab.com/YottaDB/Util/YDBZlib) (Copyright © 2017-2019, YottaDB LLC). Both are available under open source licenses.
+MLua also uses [Lua](https://www.lua.org/) (copyright © 1994–2021 Lua.org, PUC-Rio) and [YottaDB](https://yottadb.com/) (copyright © 2017-2019, YottaDB LLC). Both are available under open source licenses.
 
 ## Installation
 
