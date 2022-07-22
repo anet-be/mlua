@@ -7,25 +7,25 @@ MLua is a Lua language plugin the MUMPS database. It provides the means to call 
 Basic operation is shown below:
 
 ```shell
-    $ ydb
+$ ydb
 
-    YDB>do &mlua.lua("print('\nHello World!')",.output)
-    Hello world!
+YDB>do &mlua.lua("print('\nHello World!')",.output)
+Hello world!
 
 
-    YDB>zwr
-    output=""
+YDB>zwr
+output=""
 
-    YDB>
+YDB>
 ```
 
 Note that the optional .output parameter will contain any Lua error messages.
 
 ## License
 
-MLua was written by Berwyn Hoyt and sponsored by the University of Antwerp Library. It is provided under the same license as YottaDB: the [GNU Affero General Public License version 3](https://www.gnu.org/licenses/agpl-3.0.txt).
+MLua's primary author is Berwyn Hoyt. It was sponsored by, and is copyright © 2022, [University of Antwerp Library](https://www.uantwerpen.be/en/library/). It is provided under the same license as YottaDB: the [GNU Affero General Public License version 3](https://www.gnu.org/licenses/agpl-3.0.txt).
 
-MLua uses Lua which is under the [MIT License](https://www.lua.org/license.html), and YottaDB which may be obtained under the  [License - YottaDB](https://yottadb.com/product/license/).
+MLua also uses [Lua](https://www.lua.org/) (copyright © 1994–2021 Lua.org, PUC-Rio) and [YottaDB](https://gitlab.com/YottaDB/Util/YDBZlib) (Copyright © 2017-2019, YottaDB LLC). Both are available under open source licenses.
 
 ## Installation
 
@@ -39,7 +39,7 @@ MLua uses Lua which is under the [MIT License](https://www.lua.org/license.html)
 If you need to use a different Lua version or install into a non-standard YDB directory, change the last line to:
 
 ```shell
-    sudo make install WORKING_LUA=lua-5.x.x INSTALL_DIR=<your_ydb_plugin_directory>
+sudo make install WORKING_LUA=lua-5.x.x INSTALL_DIR=<your_ydb_plugin_directory>
 ```
 
 MLua is implemented as a shared library mlua.so which also embeds Lua and the Lua library. There is no need to install Lua separately.
@@ -57,9 +57,9 @@ Line 4 installs mlua.xc and mlua.so into $ydb_dist/plugin.
 Check that everything is in the right place:
 
 ```shell
-    $ find `pkg-config --variable=prefix yottadb`/plugin -iname \*mlua\*
-    /usr/local/lib/yottadb/r134/plugin/mlua.so
-    /usr/local/lib/yottadb/r134/plugin/mlua.xc
+$ find `pkg-config --variable=prefix yottadb`/plugin -iname \*mlua\*
+/usr/local/lib/yottadb/r134/plugin/mlua.so
+/usr/local/lib/yottadb/r134/plugin/mlua.xc
 ```
 
 The ydb_env_set script provided by YDB, automatically provides the environment
@@ -72,5 +72,5 @@ ydb_xc_mlua environment variable explicitly.
 Simply type:
 
 ```shell
-    make test
+make test
 ```
