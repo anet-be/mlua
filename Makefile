@@ -4,7 +4,7 @@
 # === Variable of interest to user
 
 #Select which version of lua to build mlua against (all $(LUAS) are built)
-WORKING_LUA = lua-5.4.4
+LUA_VERSION = lua-5.4.4
 #Select which version tag of lua-yottadb to fetch
 LUA_YOTTADB_VERSION=master
 LUA_YOTTADB_SOURCE=https://github.com/berwynhoyt/lua-yottadb.git
@@ -12,7 +12,7 @@ LUA_YOTTADB_SOURCE=https://github.com/berwynhoyt/lua-yottadb.git
 # List the latest Lua versions to download for later building against
 # Works with lua >=5.2; older versions' makefiles differ enough that we'd have to change our invokation
 LUAS := lua-5.4.4 lua-5.3.6 lua-5.2.4
-LIBLUA = build/$(WORKING_LUA)/install/lib/liblua.a
+LIBLUA = build/$(LUA_VERSION)/install/lib/liblua.a
 
 YDB_DIST = $(shell pkg-config --variable=prefix yottadb)
 INSTALL_DIR = $(ydb_dist)/plugin
@@ -20,11 +20,11 @@ INSTALL_DIR = $(ydb_dist)/plugin
 
 # === Internal variables
 
-# Make sure $(WORKING_LUA) is included in $(LUAS)
-LUAS := $(filter-out $(WORKING_LUA), $(LUAS)) $(WORKING_LUA)
+# Make sure $(LUA_VERSION) is included in $(LUAS)
+LUAS := $(filter-out $(LUA_VERSION), $(LUAS)) $(LUA_VERSION)
 
 YDB_FLAGS = $(shell pkg-config --cflags yottadb)
-LUA_FLAGS = -Ibuild/$(WORKING_LUA)/install/include -Wl,--library-path=build/$(WORKING_LUA)/install/lib -Wl,-l:liblua.a
+LUA_FLAGS = -Ibuild/$(LUA_VERSION)/install/include -Wl,--library-path=build/$(LUA_VERSION)/install/lib -Wl,-l:liblua.a
 LDFLAGS = -lm -ldl -lyottadb -L$(YDB_DIST)
 CFLAGS = -fPIC -std=c99 -pedantic -Wall -Wno-unknown-pragmas  $(YDB_FLAGS) $(LUA_FLAGS)
 
@@ -32,7 +32,7 @@ CC = gcc
 # Decide command whether to use apt-get or yum to fetch readline lib
 FETCH_LIBREADLINE = $(if $(shell which apt-get), sudo apt-get install libreadline-dev, sudo yum install readline-devel)
 
-#Prevent deletion of targets -- and prevent rebuilding when phony target WORKING_LUA is a dependency
+#Prevent deletion of targets -- and prevent rebuilding when phony target LUA_VERSION is a dependency
 .SECONDARY:
 #Prevent leaving previous targets lying around and thinking they're up to date if you don't notice a make error
 .DELETE_ON_ERROR:
@@ -44,7 +44,7 @@ build: mlua.so
 %: %.c *.h mlua.so $(LIBLUA)
 	$(CC) $< -o $@  $(CFLAGS) $(LDFLAGS)
 
-mlua.o: mlua.c $(WORKING_LUA)
+mlua.o: mlua.c $(LUA_VERSION)
 	$(CC) -c $<  -o $@ $(CFLAGS) $(LDFLAGS)
 
 mlua.so: mlua.o _yottadb.o $(LIBLUA)
@@ -54,7 +54,7 @@ mlua.so: mlua.o _yottadb.o $(LIBLUA)
 
 # ~~~ Lua: fetch lua versions and build them
 
-lua: $(WORKING_LUA)
+lua: $(LUA_VERSION)
 luas: $(LUAS)
 lua-%: build/lua-%/install/lib/liblua.a ;
 
@@ -90,7 +90,7 @@ clean-lua-%: build/lua-%/README
 # ~~~ Lua-yottadb: fetch lua-yottadb and build it
 
 lua-yottadb: _yottadb.o
-_yottadb.o: build/lua-yottadb/_yottadb.c $(WORKING_LUA)
+_yottadb.o: build/lua-yottadb/_yottadb.c $(LUA_VERSION)
 	@echo Building $@
 	$(CC) -c $<  -o $@  $(CFLAGS) $(LDFLAGS)  -Wno-return-type -Wno-unused-but-set-variable -Wno-discarded-qualifiers
 
@@ -135,7 +135,7 @@ test:
 
 # ~~~ Install
 
-install: install-$(WORKING_LUA) ;
+install: install-$(LUA_VERSION) ;
 install-lua-%: mlua.so mlua.xc
 	sudo cp $^ $(INSTALL_DIR)
 
