@@ -4,6 +4,7 @@ tests/*
 *.so
 *.bak
 try
+yottadb.lua
 
 # Compiled Python bytecode
 *.py[cod]
