@@ -3,14 +3,14 @@
 
 # ~~~ Variables of interest to user
 
-# Select which specific version of lua to build MLua against, eg: lua-5.4.4, lua-5.3.6, lua-5.2.4
-# Works with lua >=5.2; older versions' makefiles differ enough that we'd have to change our invokation
-LUA_REVISION:=lua-5.4.4
-LIBLUA = build/$(LUA_REVISION)/install/lib/liblua.a
+# Select which specific version of lua to download and build MLua against, eg: 5.4.4, 5.3.6, 5.2.4
+# MLua works with lua >=5.2; older versions have not been tested
+LUA_BUILD_VERSION:=5.4.4
 
-# Select Lua binary and location to install MLua module to
+# Select Lua binary and get its version
 LUA:=lua
 LUA_VERSION:=$(shell $(LUA) -e 'print(string.match(_VERSION, " ([0-9]+[.][0-9]+)"))')
+# location to install mlua module to
 LUA_LIB_INSTALL=/usr/local/lib/lua/$(LUA_VERSION)			# where .so file installs
 LUA_MOD_INSTALL=/usr/local/share/lua/$(LUA_VERSION)	# where .lua file installs
 
@@ -19,16 +19,21 @@ LUA_YOTTADB_VERSION=master
 LUA_YOTTADB_SOURCE=https://github.com/berwynhoyt/lua-yottadb.git
 
 YDB_DIST = $(shell pkg-config --variable=prefix yottadb)
-
+YDB_INSTALL = $(YDB_DIST)/plugin
 
 # ~~~  Internal variables
 
+LIBLUA = build/lua-$(LUA_BUILD_VERSION)/install/lib/liblua.a
 YDB_FLAGS = $(shell pkg-config --cflags yottadb)
-LUA_FLAGS = -Ibuild/$(LUA_REVISION)/install/include -Wl,--library-path=build/$(LUA_REVISION)/install/lib -Wl,-l:liblua.a
+LUA_FLAGS = -Ibuild/lua-$(LUA_BUILD_VERSION)/install/include -Wl,--library-path=build/lua-$(LUA_BUILD_VERSION)/install/lib -Wl,-l:liblua.a
 LDFLAGS = -lm -ldl -lyottadb -L$(YDB_DIST)
 CFLAGS = -fPIC -std=c99 -pedantic -Wall -Wno-unknown-pragmas  $(YDB_FLAGS) $(LUA_FLAGS)
 
 CC = gcc
+# bash and GNU sort required for LUA_BUILD_VERSION comparison
+SHELL=bash
+$(if $(shell sort -V /dev/null 2>&1), $(error "GNU sort >= 7.0 required to get the -V option"))
+
 # Decide command whether to use apt-get or yum to fetch readline lib
 FETCH_LIBREADLINE = $(if $(shell which apt-get), sudo apt-get install libreadline-dev, sudo yum install readline-devel)
 
@@ -38,19 +43,19 @@ ifeq ($(LUA_VERSION),)
 endif
 
 
-#Prevent deletion of targets -- and prevent rebuilding when phony target LUA_REVISION is a dependency
+#Prevent deletion of targets -- and prevent rebuilding when phony target LUA_BUILD_VERSION is a dependency
 .SECONDARY:
 #Prevent leaving previous targets lying around and thinking they're up to date if you don't notice a make error
 .DELETE_ON_ERROR:
 
 
-all: lua build
-build: mlua.so
+all: lua lua-yottadb build
+build: mlua.so  # build our stuff only
 
 %: %.c *.h mlua.so $(LIBLUA)
 	$(CC) $< -o $@  $(CFLAGS) $(LDFLAGS)
 
-mlua.o: mlua.c $(LUA_REVISION)
+mlua.o: mlua.c lua-$(LUA_BUILD_VERSION)
 	$(CC) -c $<  -o $@ $(CFLAGS) $(LDFLAGS)
 
 mlua.so: mlua.o $(LIBLUA)
@@ -60,26 +65,29 @@ mlua.so: mlua.o $(LIBLUA)
 
 # ~~~ Lua: fetch lua versions and build them
 
-lua: $(LUA_REVISION)
+lua: lua-$(LUA_BUILD_VERSION)
 lua-%: build/lua-%/install/lib/liblua.a ;
+
+# Set LUA_BUILD_TARGET to 'linux' or if LUA_BUILD_VERSION >= 5.4.0, build target is 'linux-readline'
+LUA_BUILD_TARGET:=linux$(shell echo -e " 5.4.0 \n $(LUA_BUILD_VERSION) " | sort -CV && echo -readline)
 
 build/lua-%/install/lib/liblua.a: /usr/include/readline/readline.h  build/lua-%/Makefile
 	@echo Building $@
 	@# tweak the standard Lua build with flags to make sure we can make a shared library (-fPIC)
-	@# readline demanded only by lua <5.4 but override to included in all versions -- anticipating an interactive 'mlua' tool
-	$(MAKE) --directory=build/lua-$*  linux  test local  MYCFLAGS="-fPIC"  MYLIBS="-Wl,-lreadline"  SYSCFLAGS="-DLUA_USE_LINUX -DLUA_USE_READLINE"
+	@# readline demanded only by lua <5.4 but override to included in all versions -- handy if we install this lua to the system
+	$(MAKE) --directory=build/lua-$*  $(LUA_BUILD_TARGET)  MYCFLAGS="-fPIC"  local
 	@echo
 
 build/lua-%/Makefile:
 	@echo Fetching $(dir $@)
 	mkdir -p $(dir $@)
-	wget --directory-prefix=build --no-verbose "http://www.lua.org/ftp/lua-$*.tar.gz" -O build/lua-$*.tar.gz
+	wget --directory-prefix=build --no-verbose "https://www.lua.org/ftp/lua-$*.tar.gz" -O build/lua-$*.tar.gz
 	tar --directory=build -zxf build/lua-$*.tar.gz
 	rm -f build/lua-$*.tar.gz
 	@echo
 .PRECIOUS: build/lua-%/Makefile
 
-# get readline (required by lua 5.4 Makefiles, though not included in the library we build; anyway, it's useful if luac is used)
+# get readline (required by lua <5.4 Makefiles, though not included in the library we build; anyway, it's useful if built lua gets installed to the system)
 /usr/include/readline/readline.h:
 	@echo "Installing readline"
 	$(FETCH_LIBREADLINE)
@@ -95,7 +103,7 @@ clean-lua-%: build/lua-%/README
 # ~~~ Lua-yottadb: fetch lua-yottadb and build it
 
 lua-yottadb: _yottadb.so yottadb.lua
-_yottadb.so: build/lua-yottadb/_yottadb.c $(LUA_REVISION)
+_yottadb.so: build/lua-yottadb/_yottadb.c lua-$(LUA_BUILD_VERSION)
 	@echo Building $@
 	$(CC) -c $<  -o $@  -shared  $(CFLAGS) $(LDFLAGS)  -Wno-return-type -Wno-unused-but-set-variable -Wno-discarded-qualifiers
 
@@ -107,6 +115,8 @@ build/lua-yottadb/_yottadb.c:
 	git clone --branch "$(LUA_YOTTADB_VERSION)" "$(LUA_YOTTADB_SOURCE)" $(dir $@)
 .PRECIOUS: build/lua-yottadb/_yottadb.c
 
+clean-lua-yottadb:
+	rm -f _yottadb.so yottadb.lua
 
 # ~~~ Debug
 
@@ -144,17 +154,17 @@ test:
 
 # ~~~ Install
 
-install: install-$(LUA_REVISION) ;
+install: install-lua-$(LUA_BUILD_VERSION) ;
 install-lua-%: mlua.so mlua.xc _yottadb.so yottadb.lua
 	@test "`whoami`" = root || ( echo "You must run 'make install' as root" && false )
-	@echo $(LUA_REVISION) | grep -q "\-$(LUA_VERSION)" || ( \
-		echo "Cannot install MLua (which is built against $(LUA_REVISION)) into the target Lua (which is version $(LUA_VERSION))." && \
+	@echo lua-$(LUA_BUILD_VERSION) | grep -q "\-$(LUA_VERSION)" || ( \
+		echo "Cannot install MLua (which is built against lua-$(LUA_BUILD_VERSION)) into the target Lua (which is version $(LUA_VERSION))." && \
 		echo "Either change your Lua install target in the Makefile or install the version of Lua that you have built against." && \
 		false )
-	install -D mlua.so mlua.xc $(YDB_DIST)/plugin
+	install -D mlua.so mlua.xc $(YDB_INSTALL)
 	install -D _yottadb.so $(LUA_LIB_INSTALL)
 	install -D yottadb.lua $(LUA_MOD_INSTALL)
 
 
 .PHONY: lua lua-%  lua-yottadb  all build test vars install install-lua-%
-.PHONY: clean clean-luas clean-lua-% refresh
+.PHONY: clean clean-luas clean-lua-% clean-lua-yottadb refresh

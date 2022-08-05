@@ -36,10 +36,10 @@ MLua also uses [Lua](https://www.lua.org/) (copyright © 1994–2021 Lua.org, PU
 3. make
 4. sudo make install
 
-If you need to use a different Lua version or install into a non-standard YDB directory, change the last line to:
+If you need to use a different Lua version or install into a non-standard YDB directory, change the last line to something like:
 
 ```shell
-sudo make install WORKING_LUA=lua-5.x.x INSTALL_DIR=<your_ydb_plugin_directory>
+sudo make install LUA_BUILD_VERSION=5.x.x YDB_DEST=<your_ydb_plugin_directory> LUA_LIB_INSTALL=/usr/local/lib/lua/x.x LUA_MOD_INSTALL=/usr/local/share/lua/x.x
 ```
 
 MLua is implemented as a shared library mlua.so which also embeds Lua and the Lua library. There is no need to install Lua separately.
@@ -47,12 +47,9 @@ MLua is implemented as a shared library mlua.so which also embeds Lua and the Lu
 ### Explanation
 
 Here's what is going on in the installation.
-
 Line 2 fetches the MLua code and makes it the working directory.
-
 Line 3 downloads and then builds the Lua language, then it builds MLua.
-
-Line 4 installs mlua.xc and mlua.so into $ydb_dist/plugin.
+Line 4 installs mlua.xc and mlua.so, typically into $ydb_dist/plugin, and _yottadb.so and yottadb.lua into the system lua folders
 
 Check that everything is in the right place:
 
