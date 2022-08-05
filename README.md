@@ -34,7 +34,8 @@ MLua also uses [Lua](https://www.lua.org/) (copyright © 1994–2021 Lua.org, PU
    guide instructions or from [source](https://gitlab.com/YottaDB/DB/YDB).
 2. git clone `<mlua repository>` mlua && cd mlua
 3. make
-4. sudo make install
+4. sudo make install       # install MLua
+5. sudo make install-lua   # optional, if you also want to install the Lua version you built here into your system
 
 If you need to use a different Lua version or install into a non-standard YDB directory, change the last line to something like:
 
