@@ -105,7 +105,7 @@ clean-lua-%: build/lua-%/README
 lua-yottadb: _yottadb.so yottadb.lua
 _yottadb.so: build/lua-yottadb/_yottadb.c lua-$(LUA_BUILD_VERSION)
 	@echo Building $@
-	$(CC) -c $<  -o $@  -shared  $(CFLAGS) $(LDFLAGS)  -Wno-return-type -Wno-unused-but-set-variable -Wno-discarded-qualifiers
+	$(CC) $<  -o $@  -shared  $(CFLAGS) $(LDFLAGS)  -Wno-return-type -Wno-unused-but-set-variable -Wno-discarded-qualifiers
 
 yottadb.lua: build/lua-yottadb/_yottadb.c
 	cp build/lua-yottadb/yottadb.lua $@
