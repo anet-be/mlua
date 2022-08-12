@@ -6,9 +6,9 @@
 #include "gtmxc_types.h"
 
 // User functions
-void mlua_open(int _argc);
-gtm_status_t mlua(int _argc, const gtm_string_t *code, gtm_char_t *outstr);   // run Lua code, opening lua state if needed; returning status and outstr if error
-void mlua_close(int _argc);
+gtm_long_t mlua_open(int argc, gtm_char_t *outstr);
+gtm_status_t mlua(int argc, gtm_long_t lua_handle, const gtm_string_t *code, gtm_char_t *outstr);   // run Lua code, opening lua state if needed; returning status and outstr if error
+void mlua_close(int argc, gtm_long_t lua_handle);
 
 gtm_int_t mlua_version_number(int _argc);   // return version of this module as a decimal number AABBCC where AA=major; BB=minor; CC=release
 
