@@ -9,17 +9,31 @@ Basic operation is shown below:
 ```shell
 $ ydb
 
-YDB>do &mlua.lua("print('\nHello World!')",.output)
+YDB>do &mlua.lua(0,"print('\nHello World!')",.errorOutput)
 Hello world!
 
 
 YDB>zwr
-output=""
+errorOutput=""
 
 YDB>
 ```
 
-Note that the optional .output parameter will contain any Lua error messages.
+Note that the optional .output parameter will contain any Lua error messages caused while trying to run the code. The first parameter (zero) tells MLua to open and run your code in the default global lua_State (see luaOpen() below).
+
+## API
+
+Here is the list of supplied functions, [optional parameters in square brackets]:
+
+- lua(luaHandle,code,[.errstr])
+- luaOpen([.errstr])
+- luaClose(luaHandle)
+
+If luaHandle of 0 is supplied, lua() will run the code in the default global lua_State, automatically opening it the first time you call lua(). luaHandle may also take a non-zero alternate handle returned by luaOpen() if you wish to run code in a different lua_State.
+
+Thread safety: A lua_State is not re-entrant, so if you use separate ydb threads you will need to invoke lua code in a separate state for each thread, or ensure in some other way that a thread does not re-enter a lua_State that another thread is currently running using lua().
+
+If you are finished using a lua_State, you may luaClose(luaHandle) to free up any memory its code has allocated, calling any garbage-collection metamethods you have introduced.
 
 ## License
 

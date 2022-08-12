@@ -86,7 +86,10 @@ gtm_status_t mlua(int argc, gtm_long_t lua_handle, const gtm_string_t *code, gtm
 void mlua_close(int argc, gtm_long_t lua_handle) {
   if (argc < 1) lua_handle = 0;
   lua_State *lua=(lua_State *)lua_handle;
-  if (!lua) lua = Global_lua;
+  if (!lua) {
+    lua = Global_lua;
+    Global_lua = NULL;  // ensure we don't crash by closing the same global lua next time
+  }
   if (lua) lua_close(lua);
 }
 
