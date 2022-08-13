@@ -18,15 +18,15 @@
 lua_State *Global_lua = NULL;
 
 // Same as lua_pcall but sets args, results, error_handler as we wish
-static int mlua_pcall(lua_State *lua) {
+static int mlua_pcall(lua_State *L) {
   int args=0, results=0;
   int error_handler=0;
-  return lua_pcall(lua, args, results, error_handler);
+  return lua_pcall(L, args, results, error_handler);
 }
 
 // Wrap luaL_openlibs to change it to type lua_CFunction so we can call it with protected pcall
-static int luaL_openlibs_ret0(lua_State *lua) {
-  luaL_openlibs(lua);
+static int luaL_openlibs_ret0(lua_State *L) {
+  luaL_openlibs(L);
   return 0; // return no parameters
 }
 
@@ -37,26 +37,26 @@ static int luaL_openlibs_ret0(lua_State *lua) {
 // return new lua_State handle or zero if there is an error
 //    optional errstr returns empty on success or an error message on error
 gtm_long_t mlua_open(int argc, gtm_char_t *errstr, gtm_int_t flags) {
-  lua_State *lua;
+  lua_State *L;
 
   if (argc<1) errstr=NULL;
   if (argc<2) flags=0;
 
   // allocate new lua state
-  lua = luaL_newstate();
-  if (!lua) {
+  L = luaL_newstate();
+  if (!L) {
     if (errstr)
       snprintf(errstr, OUTPUT_STRING_MAXIMUM_LENGTH, "Could not allocate lua_State -- possible memory lack");
     return 0;
   }
 
   // Open default lua libs and add them to the new lua_State
-  lua_pushcfunction(lua, luaL_openlibs_ret0);
-  int error = mlua_pcall(lua);
+  lua_pushcfunction(L, luaL_openlibs_ret0);
+  int error = mlua_pcall(L);
   if (error) {
     if (errstr)
-      snprintf(errstr, OUTPUT_STRING_MAXIMUM_LENGTH, "Lua: in init luaL_openlibs(), %s", lua_tostring(lua, -1));
-    lua_pop(lua, 1);  // pop error message from the stack
+      snprintf(errstr, OUTPUT_STRING_MAXIMUM_LENGTH, "Lua: in init luaL_openlibs(), %s", lua_tostring(L, -1));
+    lua_pop(L, 1);  // pop error message from the stack
     return 0;
   }
 
@@ -67,61 +67,62 @@ gtm_long_t mlua_open(int argc, gtm_char_t *errstr, gtm_int_t flags) {
   if (mlua_init) {
     int error;
     if (mlua_init[0] == '@')
-      error = luaL_loadfile(lua, mlua_init+1);
+      error = luaL_loadfile(L, mlua_init+1);
     else
-      error = luaL_loadbuffer(lua, mlua_init, strlen(mlua_init), mlua_init);
-    error = error || mlua_pcall(lua);
+      error = luaL_loadbuffer(L, mlua_init, strlen(mlua_init), mlua_init);
+    error = error || mlua_pcall(L);
     if (error) {
       if (errstr)
-        snprintf(errstr, OUTPUT_STRING_MAXIMUM_LENGTH, "Lua: MLUA_INIT, %s", lua_tostring(lua, -1));
-      lua_pop(lua, 1);  // pop error message from the stack
+        snprintf(errstr, OUTPUT_STRING_MAXIMUM_LENGTH, "Lua: MLUA_INIT, %s", lua_tostring(L, -1));
+      lua_pop(L, 1);  // pop error message from the stack
       return 0;
     }
   }
 
   if (errstr) errstr[0] = '\0';   // clear error string
-  return (gtm_long_t)lua;
+  return (gtm_long_t)L;
+}
+
+// Close the lua_State specified by luaState_handle or close the global lua_State if no handle provided
+void mlua_close(int argc, gtm_long_t luaState_handle) {
+  if (argc < 1) luaState_handle = 0;
+  lua_State *L=(lua_State *)luaState_handle;
+  if (!L) {
+    L = Global_lua;
+    Global_lua = NULL;  // ensure we don't crash by closing the same global lua next time
+  }
+  if (L) lua_close(L);
 }
 
 // Run Lua code
-// If lua_handle is 0, use the global lua_State (opening it if needed),
+// If luaState_handle is 0, use the global lua_State (opening it if needed),
 //    but be aware that multiple ydb threads must not use the same lua_State
 // return 0 on success with an empty errstr, if specified
 //    optional errstr returns an error message on error
-gtm_int_t mlua(int argc, gtm_long_t lua_handle, const gtm_string_t *code, gtm_char_t *errstr) {
-  if (argc<2) return -1;  // no code to run so return error status -- but can't return output string (not supplied)
-  if (argc<3) errstr=NULL;
+gtm_int_t mlua(int argc, const gtm_string_t *code, gtm_char_t *errstr, gtm_long_t luaState_handle) {
+  if (argc<1) return -1;  // no code to run so return error status -- but can't return output string (not supplied)
+  if (argc<2) errstr=NULL; // don't return error string
+  if (argc<3) luaState_handle=0; // use global lua_State
 
   // open global lua state if necessary
-  lua_State *lua=(lua_State *)lua_handle;
-  if (!lua) lua=Global_lua;
-  if (!lua) {
-    lua = (lua_State *)mlua_open(2, errstr, 0);
-    if (!lua) return -2;  // could not open; note: errstr already filled by opener
-    Global_lua = lua;
+  lua_State *L=(lua_State *)luaState_handle;
+  if (!L) L=Global_lua;
+  if (!L) {
+    L = (lua_State *)mlua_open(2, errstr, 0);
+    if (!L) return -2;  // could not open; note: errstr already filled by opener
+    Global_lua = L;
   }
 
-  int error = luaL_loadbuffer(lua, code->address, code->length, "mlua(code)")
-              || mlua_pcall(lua);
+  int error = luaL_loadbuffer(L, code->address, code->length, "mlua(code)")
+              || mlua_pcall(L);
   if (error) {
     if (errstr)
-      snprintf(errstr, OUTPUT_STRING_MAXIMUM_LENGTH, "Lua: %s", lua_tostring(lua, -1));
-    lua_pop(lua, 1);  // pop error message from the stack
+      snprintf(errstr, OUTPUT_STRING_MAXIMUM_LENGTH, "Lua: %s", lua_tostring(L, -1));
+    lua_pop(L, 1);  // pop error message from the stack
     return -3;
   }
   if (errstr) errstr[0] = '\0';   // clear error string
   return 0;
-}
-
-// Close the lua state specified by lua_handle or close the global lua_State if no handle provided
-void mlua_close(int argc, gtm_long_t lua_handle) {
-  if (argc < 1) lua_handle = 0;
-  lua_State *lua=(lua_State *)lua_handle;
-  if (!lua) {
-    lua = Global_lua;
-    Global_lua = NULL;  // ensure we don't crash by closing the same global lua next time
-  }
-  if (lua) lua_close(lua);
 }
 
 // Return version numbers for this module
