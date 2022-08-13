@@ -1,3 +1,7 @@
+t.lua
+t.m
+t2.m
+
 build/*
 tests/*
 *.o

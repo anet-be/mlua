@@ -55,7 +55,7 @@ gtm_long_t mlua_open(int argc, gtm_char_t *errstr, gtm_int_t flags) {
   int error = mlua_pcall(lua);
   if (error) {
     if (errstr)
-      snprintf(errstr, OUTPUT_STRING_MAXIMUM_LENGTH, "%s", lua_tostring(lua, -1));
+      snprintf(errstr, OUTPUT_STRING_MAXIMUM_LENGTH, "Lua: in init luaL_openlibs(), %s", lua_tostring(lua, -1));
     lua_pop(lua, 1);  // pop error message from the stack
     return 0;
   }
@@ -69,11 +69,11 @@ gtm_long_t mlua_open(int argc, gtm_char_t *errstr, gtm_int_t flags) {
     if (mlua_init[0] == '@')
       error = luaL_loadfile(lua, mlua_init+1);
     else
-      error = luaL_loadbuffer(lua, mlua_init, strlen(mlua_init), "MLUA_INIT");
+      error = luaL_loadbuffer(lua, mlua_init, strlen(mlua_init), mlua_init);
     error = error || mlua_pcall(lua);
     if (error) {
       if (errstr)
-        snprintf(errstr, OUTPUT_STRING_MAXIMUM_LENGTH, "%s", lua_tostring(lua, -1));
+        snprintf(errstr, OUTPUT_STRING_MAXIMUM_LENGTH, "Lua: MLUA_INIT, %s", lua_tostring(lua, -1));
       lua_pop(lua, 1);  // pop error message from the stack
       return 0;
     }
@@ -88,7 +88,7 @@ gtm_long_t mlua_open(int argc, gtm_char_t *errstr, gtm_int_t flags) {
 //    but be aware that multiple ydb threads must not use the same lua_State
 // return 0 on success with an empty errstr, if specified
 //    optional errstr returns an error message on error
-gtm_status_t mlua(int argc, gtm_long_t lua_handle, const gtm_string_t *code, gtm_char_t *errstr) {
+gtm_int_t mlua(int argc, gtm_long_t lua_handle, const gtm_string_t *code, gtm_char_t *errstr) {
   if (argc<2) return -1;  // no code to run so return error status -- but can't return output string (not supplied)
   if (argc<3) errstr=NULL;
 
@@ -105,12 +105,12 @@ gtm_status_t mlua(int argc, gtm_long_t lua_handle, const gtm_string_t *code, gtm
               || mlua_pcall(lua);
   if (error) {
     if (errstr)
-      snprintf(errstr, OUTPUT_STRING_MAXIMUM_LENGTH, "%s", lua_tostring(lua, -1));
+      snprintf(errstr, OUTPUT_STRING_MAXIMUM_LENGTH, "Lua: %s", lua_tostring(lua, -1));
     lua_pop(lua, 1);  // pop error message from the stack
     return -3;
   }
   if (errstr) errstr[0] = '\0';   // clear error string
-  return error!=LUA_OK;
+  return 0;
 }
 
 // Close the lua state specified by lua_handle or close the global lua_State if no handle provided
