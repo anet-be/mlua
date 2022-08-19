@@ -2,7 +2,7 @@
 
 ## Overview
 
-MLua is a Lua language plugin the MUMPS database. It provides the means to call Lua from whitin M. Here is [more complete documentation](https://dev.anet.be/doc/brocade/mlua/html/index.html) of where this project is headed. MLua incorporates [lua-yottadb](https://github.com/orbitalquark/lua-yottadb/) so that Lua code written for that (per ydb's [Multi-Language Programmer's Guide](https://docs.yottadb.com/MultiLangProgGuide/luaprogram.html)) will also work with MLua.
+MLua is a Lua language plugin the MUMPS database. It provides the means to call Lua from within M. Here is [more complete documentation](https://dev.anet.be/doc/brocade/mlua/html/index.html) of where this project is headed. MLua incorporates [lua-yottadb](https://github.com/orbitalquark/lua-yottadb/) so that Lua code written for that (per ydb's [Multi-Language Programmer's Guide](https://docs.yottadb.com/MultiLangProgGuide/luaprogram.html)) will also work with MLua.
 
 Invoking a Lua command is easy:
 
@@ -109,11 +109,21 @@ When .errstr is supplied, it is cleared on success and filled with the error mes
 
 If the luaState handle is missing or 0, mlua.lua() will run the code in the default global lua_State, automatically opening it the first time you call mlua.lua(). Alternatively, you can supply a luaState with a handle returned by mlua.open() to run code in a different lua_State.
 
-Thread safety: A lua_State is not re-entrant, so if you use multiple ydb threads you will need to use mlua.open() to invoke Lua code in a separate state for each thread, or ensure in some other way that a thread does not re-enter a lua_State that another thread is currently running.
-
 If you are finished using a lua_State, you may mlua.close(luaState) to free up any memory its code has allocated. This will also call any garbage-collection metamethods you have introduced.
 
-## Versions & Acknolwledgements
+### Signals / Interrupts
+
+MLua apps must treat signals with respect: a) apps mustn't use signals, and b) apps must handle the EINTR error by retrying when making [system calls that can return EINTR](https://stackoverflow.com/questions/25729901/system-calls-and-eintr-error-code). This is a fairly onerous requirement, but is necessary because ydb makes heavy use of signals. If you wish to buck this requirement, first read the ydb [Limitations on External Programs](https://docs.yottadb.com/ProgrammersGuide/extrout.html#limitations-on-the-external-program) and further notes on [Signals](https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#signals).
+
+The only systems functions that the Lua standard library calls which can return EINTR are (f)open/close/read/write. These affect only functions exposed by the io library. It would be worth adding MLua EINTR retry wrappers for all of these functions to prevent the user from having to retry every single I/O operation. This not been done yet.
+
+### Thread Safety
+
+Lua co-routines, are perfectly safe to use with ydb, since they are cooperative rather than preemptive.
+
+However, multi-threaded applications must invoke ydb using [special C API functions](https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#threads). MLua uses lua-yottadb which does not use these special functions, and so MLua must not be used in multi-threaded applications unless the application designer ensures that only one of the threads invokes the database. If there is keen demand, it would be relatively easy to upgrade lua-yottadb to use the thread-safe function calls, making MLua thread-safe. It would still be necessary, however to have only one lua_State per thread, or ensure in some other way that a thread does not re-enter a lua_State that another thread is currently running.
+
+## Versions & Acknowledgements
 
 MLua requires Lua version 5.2 or higher and ydb 1.34 or higher. Older Lua versions may work but are untested and would have to be built manually since the MLua Makefile does not know how to build them.
 
