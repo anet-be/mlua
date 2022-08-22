@@ -13,7 +13,7 @@ However, a) improvement is needed on data sharing efficiency and syntax, and b) 
 
 ## Syntax and Macros
 
-7d (=3wk): Improvement is needed on data sharing efficiency and syntax. I propose a solution by making ydb globals act like Lua tables. A breakdown of this task is outlined in [proposal.md](/src/tasks/proposal.md).
+7d (=3wk): Improvement is needed on data sharing efficiency and syntax. I propose a solution by making ydb globals act like Lua tables. A breakdown of this task is outlined in [proposal.md](/).
 
 7d (=3wk): Ability for Lua to call an M function and invoke an M4 macro. Breakdown as follows:
 
