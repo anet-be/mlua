@@ -63,27 +63,27 @@ YDB>zwr ^oaks(,"height")
 ^oaks(3,"height")="15.0"
 ```
 
-Now let's write some Lua code to fetch data from ydb and calculate oak heights. Here's `oakheight.lua`:
+The function `show_oaks()` fetches data from ydb and calculates oak heights. It is defined in `oakheight.lua` as follows:
 
 ```lua
-function show_oaks(oakkey)
-    for sub in oakkey:subscripts() do
-        oak=oakkey(sub)
-        height = oak('shadow').value * math.tan( math.rad(oak('angle').value) )
+function show_oaks(oaks)
+    for sub in oaks:subscripts() do
+        oaktree=oaks(sub)
+        height = oaktree('shadow').value * math.tan( math.rad(oaktree('angle').value) )
 
         print(string.format('Oak %s is %.1fm high', sub, height))
-        oak('height').value = height  -- save back into ydb
+        oaktree('height').value = height  -- save back into ydb
     end
 end
 ```
 
-Further documentation of Lua's API for ydb is documented in ydb's [Multi-Language Programmer's Guide](https://docs.yottadb.com/MultiLangProgGuide/luaprogram.html).
+Further documentation of Lua's API for ydb is documented in ydb's [Multi-Language Programmer's Guide](https://docs.yottadb.com/MultiLangProgGuide/luaprogram.html), including locks and transactions.
 
 ### MLUA_INIT and ydb.dump()
 
-Oh, so `ydb.dump()` doesn't work for you? That's because I cheated: I loaded the `ydb.dump()` function on startup by setting my environment variable `MLUA_INIT=@startup.lua` so that it runs the file below when &mlua.lua starts.  Just like Lua's standard LUA_INIT, set MLUA_INIT to Lua code, or to a filepath starting with @.
+You probably found that `ydb.dump()` doesn't work for you. That's because I cheated: I set up MLua to define that function on initialisation. This is a handy feature. Simply set environment variable `MLUA_INIT=@startup.lua` and it will run whenever &mlua creates a new lua_State -- it works just like Lua's standard LUA_INIT: set the variable to contain Lua code or a filepath starting with @.
 
-My `startup.lua` file defines ydb.dump():
+My `startup.lua` file defines ydb.dump() as follows:
 
 ```lua
 local ydb = require 'yottadb'
@@ -95,7 +95,7 @@ function ydb.dump(glvn, ...)
 end
 ```
 
-You can add your own handy code at startup. For example, to avoid having to explicity require the ydb library every time you run ydb+mlua, just remove the word 'local' in the file above, or set `MLUA_INIT="ydb = require 'yottadb' "`
+You can add your own handy code at startup. For example, to avoid having to explicitly require the ydb library every time you run ydb+mlua, set `MLUA_INIT="ydb = require 'yottadb'"`
 
 ## API
 
