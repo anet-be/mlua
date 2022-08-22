@@ -28,6 +28,7 @@ The above alpha release is the first major milestone of MLua: defining and imple
 One of my outstanding tasks is to review cmumps code (1wk). Is this a good stopping point at which to do so - discuss?
 
 * 2.5d (1wk): review cmumps code and provide suggestions
+* 2d Integrate MLua and mxxhash into cmumps (as a master collector) for deployment into qtechng. Discuss with Bart/Luc
 
 ## Robustness
 
