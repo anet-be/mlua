@@ -16,8 +16,11 @@ However, a) improvement is needed on data sharing efficiency and syntax, and b) 
 1. 7d (=3wk): Improvement is needed on data sharing efficiency and syntax. I propose a solution by making ydb globals act like Lua tables.
    - A breakdown of this task is outlined in [proposal.md](./proposal.md).
 2. 7d (=3wk): Ability for Lua to call an M function and invoke an M4 macro. Breakdown as follows:
+
    - 2d: understand M4 macros typical uses
+   
    - 4d: create a way to invoke M4 macros from Lua and use the data in Lua (task duration uncertain). Requires implementing ydb 'callins' from Lua (lua-yottadb does not implement these).
+   
    - 1d: alpha release of MLua to developers to play with and give feedback; process their feedback
 
 The above alpha release is the first major milestone of MLua: defining and implementing how interaction works and data is shared.
