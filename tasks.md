@@ -4,7 +4,7 @@ This document roughly covers MLua deliverable number 1.8.1.1 [defined here](http
 
 ## Current state
 
-- M can open a connection to Lua and vice versa.
+- M can open a connection to Lua and vice versa, and runs MLUA_INIT env var at startup
 - Lua and M can share data via lua-yottadb (which is now bug-fixed)
 - Build and install works.
 - Risks can cautions have been are researched, documented, and appropriate tasks added below.
@@ -43,5 +43,4 @@ The above alpha release is the first major milestone of MLua: defining and imple
    - 2.5d: Write wrappers for all Lua I/O functions to re-try on EINTR error -- per ydb recommendation
 
    - 0.5d: Handle memory full in lua-yottadb functions.
-
 
