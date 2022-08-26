@@ -39,7 +39,7 @@ FETCH_LIBREADLINE = $(if $(shell which apt-get), sudo apt-get install libreadlin
 
 # Check validity of generated LUA_VERSION
 ifeq ($(LUA_VERSION),)
- $(error Generated empty LUA_VERSION string: possibly because Lua binary ($(LUA)) could not run))
+ $(error LUA_VERSION string is empty: possibly could not generate it because Lua binary ($(LUA)) could not run?))
 endif
 
 
