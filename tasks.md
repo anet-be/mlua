@@ -27,9 +27,11 @@ The above alpha release is the first major milestone of MLua: defining and imple
 
 ## Benchmarks
 
-3. 3.5d (=1.5wk): Create a set of benchmarks for MLua. Use [YottaWeb-Test](https://yottadb.com/comparing-yottadb-web-framework-performance/) as a baseline starting point to compare against.
+3. 3.5d (=1.5wk): Create a set of benchmarks for MLua. Use [YottaWeb-Test](https://yottadb.com/comparing-yottadb-web-framework-performance/) as a baseline starting point to compare against:
+
    - 1d: Create minimal web baseline test of just the fast Lua part of YottaWebTest using gitpod for equivalent comparison
-   - 2.5d: Add a testing functionality typically provided by cmumps. Compare against cmumps for speed.
+
+- 2.5d: Add a testing functionality typically provided by cmumps. Compare against cmumps for speed.
 
 ## Cmumps
 
