@@ -115,12 +115,12 @@ void mlua_close(int argc, gtm_long_t luaState_handle) {
 // If luaState_handle is 0, use the global lua_State (opening it if needed),
 //    but be aware that any threaded app (e.g. a C app linked into to ydb)
 //    must not call the same lua_State from multiple threads
-// return 0 on success and return tostring(result) in .output if .output was supplied
+// return 0 on success and return a string representation of the return value in .output if .output was supplied
 // return <0 on error and return the error message in .output if .output was supplied
 gtm_int_t mlua_lua(int argc, const gtm_string_t *code, gtm_string_t *output, gtm_long_t luaState_handle, ...) {
   int output_size = output->length; // ydb sets it to preallocated size
   if (argc<1) return MLUA_ERROR;  // no code to run so return error status -- but can't return output string (not supplied)
-  if (argc<2) output=NULL; // don't return error string
+  if (argc<2 || !output->address) output=NULL; // don't return output string
   if (argc<3) luaState_handle=0; // use global lua_State
 
   // open global lua state if necessary
@@ -157,12 +157,37 @@ gtm_int_t mlua_lua(int argc, const gtm_string_t *code, gtm_string_t *output, gtm
     return MLUA_ERROR;
   }
   if (output) {
-    // Test for nil first to speed up lua() invokations when it's not necessary to call slow outputf
-    if (lua_isnil(L, -1) && output->address) {
-      *output->address = '\0';
-      output->length = 0;
-    } else
-      outputf(output, output_size, "%s", lua_tostring(L, -1));
+    // Handle various output types specially for easy conversion to ydb
+    size_t len;
+    const char *s;
+    int output_type = lua_type(L, -1);
+    switch (output_type) {
+      case LUA_TNIL:
+        output->address[0] = '\0';
+        output->length = 0;
+        break;
+      case LUA_TBOOLEAN:
+        output->address[0] = '0' + lua_toboolean(L, -1);
+        output->address[1] = '\0';
+        output->length = 1;
+        break;
+      case LUA_TNUMBER:
+      case LUA_TSTRING:
+        // Return output string, ensuring that strings containing nulls are correctly returned
+        s = lua_tolstring(L, -1, &len);
+        if (len > output_size)
+          len = output_size;
+        memcpy(output->address, s, len);
+        output->length = len;
+        if (output_type == LUA_TNUMBER) {
+          // Convert any exponential notation 'e' in a number to 'E' so YDB can understand it.
+          char *e_position = memchr(output->address, 'e', len);
+          if (e_position) *e_position = 'E';
+        }
+        break;
+      default:
+        outputf(output, output_size, "(%s)", lua_typename(L, output_type));
+    }
   }
   lua_pop(L, 1);  // pop result from the stack
   return 0;
