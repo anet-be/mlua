@@ -18,17 +18,27 @@ Now let's access a ydb local. At the first print statement we'll intentionally c
 YDB>do &mlua.lua("ydb = require 'yottadb'")
 YDB>set hello=$C(10)_"Hello World!"
 
-YDB>write $&mlua.lua("print hello",.errorOutput)  ; print requires parentheses
--3
-YDB>write errorOutput
+YDB>write $&mlua.lua("print hello",.output)  ; print requires parentheses
+-1
+YDB>write output
 Lua: [string "mlua(code)"]:1: syntax error near 'hello'
 
-YDB>write $&mlua.lua("print(ydb.get('hello'))",.errorOutput)
+YDB>write $&mlua.lua("print(ydb.get('hello'))",.output)
 Hello World!
 
 0
-YDB>write errorOutput
+YDB>write output
 
+YDB>
+```
+
+Since all Lua code chunks are actually functions, you can also pass parameters and return values:
+
+```lua
+YDB>do &mlua.lua("print('\nparams:',...) return 'Done'",.out,,1,2)  w out
+params:	1	2
+
+Done
 YDB>
 ```
 
@@ -101,15 +111,23 @@ You can add your own handy code at startup. For example, to avoid having to expl
 
 Here is the list of supplied functions, [optional parameters in square brackets]:
 
-- mlua.lua(code\[,.errstr]\[,luaState])
-- mlua.open([.errstr])
+- mlua.lua(code[,.output]\[,luaState]\[,param1]\[,...])
+- mlua.open([.output])
 - mlua.close(luaState)
 
-When .errstr is supplied, it is cleared on success and filled with the error message on error.
+`mlua.lua()` accepts a string of Lua code which it compiles and runs as a Lua 'chunk'. Note that Lua chunks are actually functions, so values may be returned and optional function parameters passed (param1, ...).
+
+Be aware that all parameters are strings and are not automatically converted to Lua numbers. Parameters are currently limited to 8, but this may easily be increased in mlua.xc).
+
+On success, `mlua.lua()` fills .output (if given) with the return value of the code chunk. If the return value is not a string, it is encoded as a string by the Lua C function `lua_tostring()`. YDB treats returned strings as numbers if they look numeric, which works nicely for smaller numbers. But be aware that `lua_tostring()` generates numbers >= 1e14 in exponential format, which YDB treats as strings. Also note that nil is returned as a zero-length string. The return string is truncated at 2048 characters (specified in mlua.xc) which [YDB says here](https://docs.yottadb.com/ProgrammersGuide/extrout.html#print-error-messages) is enough to return any of its error message. If a longer return value is required, Lua could return it via a ydb local using ydb.set('local', value).
+
+On error, .output (if given) returns the error message; `open()` returns 0 and `lua()` returns nonzero on error. Note that the value return by `lua()` is currently equal to -1. This may be enhanced in the future to also return positive integers equal to ERRNO or YDB errors whenever YDB functions called by Lua are the cause of the error. However, for now, all errors return -1 and any YDB error code is encoded into the error message just like any other Lua error (Lua 5.4 does not yet support coded or named errors).
+
+`mlua.close()` returns nothing, and cannot produce an error.
 
 If the luaState handle is missing or 0, mlua.lua() will run the code in the default global lua_State, automatically opening it the first time you call mlua.lua(). Alternatively, you can supply a luaState with a handle returned by mlua.open() to run code in a different lua_State.
 
-If you are finished using a lua_State, you may mlua.close(luaState) to free up any memory its code has allocated. This will also call any garbage-collection metamethods you have introduced.
+If you are finished using a lua_State, you may mlua.close(luaState) to free up any memory its code has allocated. This will also call any garbage-collection meta-methods you have introduced.
 
 ### Signals / Interrupts
 
