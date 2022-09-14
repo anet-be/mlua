@@ -1,4 +1,4 @@
-#~ # Makefile to build MLua
+# Makefile to build MLua
 
 
 # ~~~ Variables of interest to user
