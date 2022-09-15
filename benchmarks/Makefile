@@ -1,4 +1,4 @@
-# Makefile to run MLua benchmarks
+# Makefile to build and run MLua benchmarks
 
 
 # ~~~ Variables of interest to user
@@ -9,12 +9,7 @@ YDB_INSTALL := $(YDB_DIST)/plugin
 
 
 # first target is the default
-default: test-cmumps
-
-# ~~~ Internal variables
-# export variables needed to run gtm with .m and .so files in the current directory
-
-test-cmumps: cmumps
+test:
 	./benchmark.py
 
 # ~~~ cmumps: fetch and build it if it is accessible
@@ -38,15 +33,18 @@ cstrlib.so cstrlib.xc: build/cmumps/cstrlib.c
 	cp build/cmumps/cstrlib.xc .
 	sed -i "1 s|.*/cstrlib.so|cstrlib.so|" cstrlib.xc
 
-# Print out all variables defined in this makefile
+
+# Debug: print out all variables defined in this makefile
 # Warning: these don't work if a variable contains single quotes
 vars:
 	@echo -e $(foreach v,$(.VARIABLES),$(if $(filter file, $(origin $(v)) ), '\n$(v)=$(value $(v))') )
+
 
 clean:
 	rm *.time
 	rm cstrlib.so cstrlib.xc
 	$(MAKE) -C build/cmumps clean
+
 
 .PHONY: default test-cmumps cmumps
 .PHONY: clean clean-cmumps
