@@ -15,7 +15,7 @@ default: test-cmumps
 # export variables needed to run gtm with .m and .so files in the current directory
 
 test-cmumps: cmumps
-	./run_benchmarks.sh
+	./benchmark.py
 
 # ~~~ cmumps: fetch and build it if it is accessible
 

@@ -1,8 +1,7 @@
 ; Benchmark comparison of SHA2 via M, MLua, and C
 
-%shabench()
- d run()
- w ! q
+%benchmark()
+ q
 
 ; perform equivalent of the m4_SHA512 macro for comparison purposes, without having to actually use m4
 ; PDmessage: the string to encode
@@ -28,7 +27,7 @@ getMumpsType(type)
  q
 
 cmumpsHash(glvn)
- s out=$$%HSHA512^%shaBench(glvn,1)
+ s out=$$%HSHA512(glvn,1)
  q out
 
 init()
@@ -38,8 +37,22 @@ init()
  for i=1:1:1000 s msg=msg_msgTmp
  q
 
-run()
+cmumpsLong()
  d init()
- for i=1:1:1000 d
+ for i=1:1:100 d
+ . s dummy=$$cmumpsHash(msg)
+ q
+
+cmumpsMed()
+ d init()
+ s msg=$extract(msg,1,1000)
+ for i=1:1:50000 d
+ . s dummy=$$cmumpsHash(msg)
+ q
+
+cmumpsSmall()
+ d init()
+ s msg=$extract(msg,1,10)
+ for i=1:1:50000 d
  . s dummy=$$cmumpsHash(msg)
  q
