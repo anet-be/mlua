@@ -13,3 +13,7 @@ yottadb.lua
 
 .vscode
 tasks
+
+benchmarks/build
+benchmarks/*.time
+benchmarks/cstrlib.xc

@@ -1,0 +1,54 @@
+# Makefile to run MLua benchmarks
+
+
+# ~~~ Variables of interest to user
+
+LUA := lua
+YDB_DIST := $(shell pkg-config --variable=prefix yottadb)
+YDB_INSTALL := $(YDB_DIST)/plugin
+
+
+# first target is the default
+default: test-cmumps
+
+# ~~~ Internal variables
+# export variables needed to run gtm with .m and .so files in the current directory
+
+test-cmumps: cmumps
+	./run_benchmarks.sh
+
+# ~~~ cmumps: fetch and build it if it is accessible
+
+CC = gcc
+CFLAGS = -std=c99 -pedantic -Wall -Wno-unknown-pragmas
+GTM_INCLUDES=-I$(YDB_DIST) -L$(YDB_DIST) -lyottadb -Wl,-rpath,$(YDB_DIST)
+UTF8PROC=utf8proc/utf8proc.c
+MBEDTLS=mbedtls/sha1.c mbedtls/sha512.c mbedtls/aes.c mbedtls/base64.c
+
+cmumps: cstrlib.so cstrlib.xc
+
+build/cmumps/cstrlib.c:
+	mkdir -p build
+	cd build && git clone git@bitbucket.org:anetbrocade/cmumps.git
+.PRECIOUS: build/cmumps/cstrlib.c
+
+cstrlib.so cstrlib.xc: build/cmumps/cstrlib.c
+	$(MAKE) -C build/cmumps
+	cp build/cmumps/cstrlib.so .
+	cp build/cmumps/cstrlib.xc .
+	sed -i "1 s|.*/cstrlib.so|cstrlib.so|" cstrlib.xc
+
+# Print out all variables defined in this makefile
+# Warning: these don't work if a variable contains single quotes
+vars:
+	@echo -e $(foreach v,$(.VARIABLES),$(if $(filter file, $(origin $(v)) ), '\n$(v)=$(value $(v))') )
+
+clean:
+	rm *.time
+	rm cstrlib.so cstrlib.xc
+	$(MAKE) -C build/cmumps clean
+
+.PHONY: default test-cmumps cmumps
+.PHONY: clean clean-cmumps
+.SECONDARY: # Prevent deletion of targets -- and prevent rebuilding when phony target LUA_BUILD_VERSION is a dependency
+.DELETE_ON_ERROR: # Prevent leaving previous targets lying around and thinking they're up to date if you don't notice a make error
