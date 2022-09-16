@@ -17,3 +17,4 @@ tasks
 benchmarks/build
 benchmarks/*.time
 benchmarks/cstrlib.xc
+benchmarks/sha2.lua

@@ -30,29 +30,50 @@ cmumpsHash(glvn)
  s out=$$%HSHA512(glvn,1)
  q out
 
+; Generate string of random characters.
+; Has to be fast because we make it before every timing test
+; So, for the sake of speed, cheat -- by repeating 250 chars 4000 times.
+; Done this way, it takes about 0.3 ms which is negligible
+; Lua can do it in half this time, but we don't need that: 0.3 ms is negligible.
+; Done without repeats, it takes 0.3 seconds whereas lua takes 46 ms
+; However, ended up having to use Lua since ydb doesn't have a random seed function
+; And results need to be repeatable just so we can test one has against another
 init()
- s msg=""
- n msgTmp s msgTmp=""
- for i=1:1:1000 s msgTmp=msgTmp_$C($random(256))
- for i=1:1:1000 s msg=msg_msgTmp
+ n msg,msgTmp,i
+ s msg="",msgTmp=""
+ for i=1:1:250 s msgTmp=msgTmp_$C($random(256))
+ for i=1:1:4000 s msg=msg_msgTmp
+ s bigRandomString=msg
  q
 
-cmumpsLong()
- d init()
- for i=1:1:100 d
+cmumps()
+ for i=1:1:iterations d
  . s dummy=$$cmumpsHash(msg)
  q
 
-cmumpsMed()
- d init()
- s msg=$extract(msg,1,1000)
- for i=1:1:50000 d
+lua()
+ for i=1:1:iterations d
  . s dummy=$$cmumpsHash(msg)
  q
 
-cmumpsSmall()
+; invoke from command line: test^%benchmark <command> <iterations> <hashSize>
+test()
  d init()
- s msg=$extract(msg,1,10)
- for i=1:1:50000 d
- . s dummy=$$cmumpsHash(msg)
+ new command,size
+ set command=$piece($zcmdline," ",1)
+ set iterations=$piece($zcmdline," ",2)
+ set size=$piece($zcmdline," ",3)
+ s msg=$extract(bigRandomString,1,size)
+ xecute "do "_command_"()"
+ q
+
+time()
+ for j=1:1:1000 d
+ . d init()
+; . w j_$extract(bigRandomString,1)_" "
+; . w $length(bigRandomString)
+; . w $extract(bigRandomString,1,2)," ",!
+ q
+
+noop()
  q

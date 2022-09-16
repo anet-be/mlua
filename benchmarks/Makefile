@@ -9,8 +9,25 @@ YDB_INSTALL := $(YDB_DIST)/plugin
 
 
 # first target is the default
-test:
+test: cmumps test_without_cmumps
+
+# alternative target for users who do not have cmumps available
+test_without_cmumps: lua_sha
 	./benchmark.py
+
+
+# ~~~ pure_lua_SHA: fetch
+
+lua_sha: sha2.lua
+
+build/pure_lua_SHA/sha2.lua:
+	mkdir -p build
+	cd build && git clone https://github.com/Egor-Skriptunoff/pure_lua_SHA.git
+.PRECIOUS:	build/
+
+sha2.lua: build/pure_lua_SHA/sha2.lua
+	cp build/pure_lua_SHA/sha2.lua .
+
 
 # ~~~ cmumps: fetch and build it if it is accessible
 
@@ -46,7 +63,7 @@ clean:
 	$(MAKE) -C build/cmumps clean
 
 
-.PHONY: default test-cmumps cmumps
+.PHONY: test test_without_cmumps lua_sha cmumps
 .PHONY: clean clean-cmumps
 .SECONDARY: # Prevent deletion of targets -- and prevent rebuilding when phony target LUA_BUILD_VERSION is a dependency
 .DELETE_ON_ERROR: # Prevent leaving previous targets lying around and thinking they're up to date if you don't notice a make error
