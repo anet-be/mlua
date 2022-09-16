@@ -9,7 +9,6 @@ from collections import OrderedDict
 Env = {
     'ydb_xc_cstrlib': './cstrlib.xc',
     'ydb_routines': '. ' + os.environ['ydb_routines'],
-#    'ydb_gbldir': 'tmp',
 }
 
 
@@ -38,21 +37,29 @@ def main():
     init_time = benchmark('init')
     print(f"init: {init_time:0.3f}s")
 
+    sizes = [1_000_000, 1_000, 10]
     routines = OrderedDict(
-        luaSHA = [dict(size=1_000_000, iter=1), dict(size=1_000, iter=500), dict(size=10, iter=500)],
+        # dicts of:  hash_size:iterations
+        # set so that each test takes a couple of seconds -- enough so load time doesn't swamp result
+        luaSHA      = {1_000_000:1,   1_000:500,    10:500},
+        cmumpsSHA = {1_000_000:100, 1_000:50_000, 10:50_000},
+        goSHA = {1_000_000:1, 1_000:10, 10:100},
     )
-    if os.path.exists('cstrlib.so'):
-        # Only add the following if cmumps was able to be installed
-        routines.update(dict(
-            cmumpsSHA = [dict(size=1_000_000, iter=100), dict(size=1_000, iter=50_000), dict(size=10, iter=50_000)],
-        ))
-    for routine, tests in routines.items():
-        for test in tests:
-            iterations = test['iter']
-            size = test['size']
-            result = benchmark('test', routine, str(iterations), str(size))
-            per_iteration = (result-init_time) / iterations
-            print(f"{per_iteration*1000000:6.0f}us {routine:>10s} {str(size)+' bytes':<13}  ({result-init_time:0.3f}s for {iterations} iterations -- {result:0.3f}s-init)")
+
+    # Only run cmumps if it was able to be installed
+    if not os.path.exists('cstrlib.so'):  routines.pop('cmumpsSHA')
+
+    debug = False
+    for size in sizes:
+        for routine, iterdict in routines.items():
+                iterations = iterdict[size]
+                raw = benchmark('test', routine, str(iterations), str(size))
+                result = raw-init_time
+                per_iteration = (result) / iterations
+                print(f"{per_iteration*1000000:7.0f}us {routine:>10s} for {str(size)+' byte chunks':<21}", end=' ')
+                if debug:
+                    print(f"({result:0.3f}s ({raw:0.3f}s-init) for {iterations} iterations / {iterations})", end=' ')
+                print()
 
 if __name__ == '__main__':
     try:
