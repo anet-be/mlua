@@ -55,9 +55,9 @@ gtm_int_t mlua_version_number(int _argc) {
 //    optional output returns empty on success or an error message on error
 gtm_long_t mlua_open(int argc, gtm_string_t *output, gtm_int_t flags) {
   lua_State *L;
-  int output_size = output->length; // ydb sets it to preallocated size
   if (argc<1) output=NULL; // don't return error string
   if (argc<2) flags=0;
+  int output_size = output? output->length: 0; // ydb sets it to preallocated size
 
   // allocate new lua state
   L = luaL_newstate();
@@ -118,10 +118,10 @@ void mlua_close(int argc, gtm_long_t luaState_handle) {
 // return 0 on success and return a string representation of the return value in .output if .output was supplied
 // return <0 on error and return the error message in .output if .output was supplied
 gtm_int_t mlua_lua(int argc, const gtm_string_t *code, gtm_string_t *output, gtm_long_t luaState_handle, ...) {
-  int output_size = output->length; // ydb sets it to preallocated size
   if (argc<1) return MLUA_ERROR;  // no code to run so return error status -- but can't return output string (not supplied)
   if (argc<2 || !output->address) output=NULL; // don't return output string
   if (argc<3) luaState_handle=0; // use global lua_State
+  int output_size = output? output->length: 0; // ydb sets it to preallocated size
 
   // open global lua state if necessary
   lua_State *L=(lua_State *)luaState_handle;
