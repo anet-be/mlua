@@ -39,19 +39,23 @@ def main():
     print(f"init: {init_time:0.3f}s")
 
     routines = OrderedDict(
-        'lua': [dict(iter=100, size=1_000_000), dict(iter=50_000, size=1_000), dict(iter=50_000, size=10)]
+        luaSHA = [dict(size=1_000_000, iter=1), dict(size=1_000, iter=500), dict(size=10, iter=500)],
     )
     if os.path.exists('cstrlib.so'):
         # Only add the following if cmumps was able to be installed
-        routines.update({
-            'cmumps': [dict(iter=100, size=1_000_000), dict(iter=50_000, size=1_000), dict(iter=50_000, size=10)]
-        })
+        routines.update(dict(
+            cmumpsSHA = [dict(size=1_000_000, iter=100), dict(size=1_000, iter=50_000), dict(size=10, iter=50_000)],
+        ))
     for routine, tests in routines.items():
         for test in tests:
-            iterations = str(test['iter'])
-            size = str(test['size'])
-            result = benchmark('test', routine, iterations, size)
-            print(f"{routine} x{iterations} size {size}: {result-init_time:0.3f}s ({result:0.3f}s-init)")
+            iterations = test['iter']
+            size = test['size']
+            result = benchmark('test', routine, str(iterations), str(size))
+            per_iteration = (result-init_time) / iterations
+            print(f"{per_iteration*1000000:6.0f}us {routine:>10s} {str(size)+' bytes':<13}  ({result-init_time:0.3f}s for {iterations} iterations -- {result:0.3f}s-init)")
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print()

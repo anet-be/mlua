@@ -1,7 +1,51 @@
 ; Benchmark comparison of SHA2 via M, MLua, and C
 
 %benchmark()
- q
+ do test() quit
+
+cmumpsHash(glvn)
+ quit $$%HSHA512(glvn,1)
+
+;wrap mlua.lua() so that it handles errors, else returns the result
+lua(lua)
+ new out
+ if $&mlua.lua(lua,.out) w out set $ecode=",U1,"
+ quit:$quit out quit
+
+init()
+ ; get random 1MB string from Lua so we can have a reproducable one (fixed seed)
+ ; Lua is faster, anyway (see notes in randomMB.lua)
+ new lua,out
+ do lua(" rand=require'randomMB' ydb=require'yottadb' ydb.set('randomMB',rand.randomMB()) ")
+ quit
+
+cmumpsSHA()
+ for i=1:1:iterations do
+ . set result=$$cmumpsHash(msg)
+ quit
+
+luaSHA()
+ new lua,out,result
+ do lua(" ydb=require'yottadb' sha=require'sha2' ")
+ for i=1:1:iterations do
+ . set result=$$lua(" return sha.sha512(ydb.get('msg')) ")
+ quit
+
+; invoke from command line: test^%benchmark <command> <iterations> <hashSize>
+test()
+ new command,size,iterations,msg
+ set command=$piece($zcmdline," ",1)
+ set iterations=$piece($zcmdline," ",2)
+ set size=$piece($zcmdline," ",3)
+
+ do init()
+ set msg=$extract(randomMB,1,size)
+ xecute "do "_command_"()"
+ quit
+
+
+
+;~~~ Code converted from m4_SHA512 macro to normal M code
 
 ; perform equivalent of the m4_SHA512 macro for comparison purposes, without having to actually use m4
 ; PDmessage: the string to encode
@@ -24,56 +68,4 @@
 
 getMumpsType(type)
  s type=$zv s type=$s(type["Cache":"CACHE",type["IRIS":"CACHE",type["ISM":"ISM",1:$p(type," "))
- q
-
-cmumpsHash(glvn)
- s out=$$%HSHA512(glvn,1)
- q out
-
-; Generate string of random characters.
-; Has to be fast because we make it before every timing test
-; So, for the sake of speed, cheat -- by repeating 250 chars 4000 times.
-; Done this way, it takes about 0.3 ms which is negligible
-; Lua can do it in half this time, but we don't need that: 0.3 ms is negligible.
-; Done without repeats, it takes 0.3 seconds whereas lua takes 46 ms
-; However, ended up having to use Lua since ydb doesn't have a random seed function
-; And results need to be repeatable just so we can test one has against another
-init()
- n msg,msgTmp,i
- s msg="",msgTmp=""
- for i=1:1:250 s msgTmp=msgTmp_$C($random(256))
- for i=1:1:4000 s msg=msg_msgTmp
- s bigRandomString=msg
- q
-
-cmumps()
- for i=1:1:iterations d
- . s dummy=$$cmumpsHash(msg)
- q
-
-lua()
- for i=1:1:iterations d
- . s dummy=$$cmumpsHash(msg)
- q
-
-; invoke from command line: test^%benchmark <command> <iterations> <hashSize>
-test()
- d init()
- new command,size
- set command=$piece($zcmdline," ",1)
- set iterations=$piece($zcmdline," ",2)
- set size=$piece($zcmdline," ",3)
- s msg=$extract(bigRandomString,1,size)
- xecute "do "_command_"()"
- q
-
-time()
- for j=1:1:1000 d
- . d init()
-; . w j_$extract(bigRandomString,1)_" "
-; . w $length(bigRandomString)
-; . w $extract(bigRandomString,1,2)," ",!
- q
-
-noop()
  q
