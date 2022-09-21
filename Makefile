@@ -75,7 +75,7 @@ build/lua-%/install/lib/liblua.a: /usr/include/readline/readline.h  build/lua-%/
 	@echo Building $@
 	@# tweak the standard Lua build with flags to make sure we can make a shared library (-fPIC)
 	@# readline demanded only by lua <5.4 but override to included in all versions -- handy if we install this lua to the system
-	$(MAKE) --directory=build/lua-$*  $(LUA_BUILD_TARGET)  MYCFLAGS="-fPIC"  local
+	$(MAKE) -C build/lua-$*  $(LUA_BUILD_TARGET)  MYCFLAGS="-fPIC"  local
 	@echo
 
 build/lua-%/Makefile:
@@ -95,7 +95,7 @@ build/lua-%/Makefile:
 
 clean-luas: $(patsubst build/lua-%,clean-lua-%,$(wildcard build/lua-[0-9]*)) ;
 clean-lua-%: build/lua-%/README
-	$(MAKE) --directory=build/lua-$* clean
+	$(MAKE) -C build/lua-$* clean
 	rm -rf build/lua-$*/install
 .PRECIOUS: build/lua-%/README
 
@@ -151,6 +151,9 @@ test:
 	python3 test.py
 	env ydb_routines="./tests $(ydb_routines)" ydb -run "^tests"
 
+benchmarks:
+	$(MAKE) -C benchmarks
+
 
 # ~~~ Install
 
@@ -167,8 +170,8 @@ install: mlua.so mlua.xc _yottadb.so yottadb.lua
 install-lua: build/lua-$(LUA_BUILD_VERSION)/install/lib/liblua.a
 	@echo Installing Lua $(LUA_BUILD_VERSION) to your system
 	@test "`whoami`" = root || ( echo "You must run 'make install' as root" && false )
-	$(MAKE) --directory=build/lua-$(LUA_BUILD_VERSION)  install
+	$(MAKE) -C build/lua-$(LUA_BUILD_VERSION)  install
 
 
-.PHONY: lua lua-%  lua-yottadb  all build test vars install install-lua-%
+.PHONY: lua lua-%  lua-yottadb  all build test vars install install-lua-% benchmarks
 .PHONY: clean clean-luas clean-lua-% clean-lua-yottadb refresh

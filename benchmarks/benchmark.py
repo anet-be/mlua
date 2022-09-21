@@ -20,15 +20,15 @@ def user_time(user_func):
     cpu_time = usage_end.ru_utime - usage_start.ru_utime
     return cpu_time
 
-def benchmark(mroutine, *args, repitions=10):
-    """ Run mroutine from _benchmark.m repitions times and return the minimum time taken
+def benchmark(mroutine, *args, repetions=int(os.getenv('mlua_benchmark_repetitions', 10))):
+    """ Run mroutine from _benchmark.m repetions times and return the minimum time taken
         args = command line parameters passed to M routine
     """
     # set up environment so that dbase can run
     env = os.environ.copy()
     env.update(Env)
     func = lambda: subprocess.run(['gtm', '-run', mroutine+'^%benchmark'] + list(args), env=env)
-    minimum = min(user_time(func) for _i in range(repitions))
+    minimum = min(user_time(func) for _i in range(repetions))
     return minimum
 
 def main():
@@ -48,6 +48,7 @@ def main():
 
     # Only run cmumps if it was able to be installed
     if not os.path.exists('cstrlib.so'):  routines.pop('cmumpsSHA')
+    if not os.path.exists('brocr'):  routines.pop('goSHA')
 
     debug = False
     for size in sizes:

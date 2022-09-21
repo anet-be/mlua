@@ -198,3 +198,10 @@ Simply type:
 ```shell
 make test
 ```
+
+To perform a set of speed tests, do:
+
+```shell
+make benchmarks
+```
+

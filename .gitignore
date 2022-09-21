@@ -18,3 +18,6 @@ benchmarks/build
 benchmarks/*.time
 benchmarks/cstrlib.xc
 benchmarks/sha2.lua
+benchmarks/.qtechng
+benchmarks/brocr
+benchmarks/brocr.go
