@@ -35,6 +35,7 @@ def main():
     # Note: I tried to get rid of the init time compensation by making it neglegible,
     # but actually, most of it is ydb load time (~30ms) which we can't reduce
     init_time = benchmark('init')
+    print("Benchmarks produced below are calculated by running each function in a tight M loop many times")
     print(f"init: {init_time:0.3f}s")
 
     sizes = [1_000_000, 1_000, 10]
