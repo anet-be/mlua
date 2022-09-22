@@ -42,6 +42,14 @@ Done
 YDB>
 ```
 
+For the sake of speed, it is also possible to pre-compile a function. If the string starts with '>', it is taken as the name of a global function to invoke, rather than a string to compile:
+
+```lua
+YDB>do &mlua.lua("function add(a,b) return a+b end",.out)
+YDB>do &mlua.lua(">add",.out,,3,4) w out
+7
+```
+
 
 
 ### Example Lua task
