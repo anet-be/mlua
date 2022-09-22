@@ -13,31 +13,39 @@ init()
  ; get random 1MB string from Lua so we can have a reproducable one (fixed seed)
  ; Lua is faster, anyway (see notes in randomMB.lua)
  do lua(" rand=require'randomMB' ydb=require'yottadb' ydb.set('randomMB',rand.randomMB()) ")
+ do lua(" cputime=require'cputime' ")
+ do lua(" function start() start_child=cputime.get_children_process_cputime() start_time=cputime.get_process_cputime() end ")
+ do lua(" function stop() r1=cputime.get_process_cputime()-start_time r2=cputime.get_children_process_cputime()-start_child return r1+r2 end ")
  quit
 
 goSHA()
  new i,RAinput,RAret
+ do lua(">start")
  for i=1:1:iterations do
  . ; code below taken from Brocade m4_HSHA512
  . set RAinput(1)=msg d %Pipe(.RAret,"./brocr SHA512",.RAinput,$c(13,10),0)
  . set sha512=$g(RAret(1)),sha512=$p($p(sha512,"(",2),")")
  . set result=sha512
- quit
+ set elapsed=$$lua(">stop")
+ quit elapsed
 
 cmumpsSHA()
  new i
+ do lua(">start")
  for i=1:1:iterations do
  . do &cstrlib.sha512(.sha512,msg)
  . set result=sha512
- quit
+ set elapsed=$$lua(">stop")
+ quit elapsed
 
 luaSHA()
  new lua,i
  do lua(" ydb=require'yottadb' sha=require'sha2' function func() return sha.sha512(ydb.get('msg')) end ")
+ do lua(">start")
  for i=1:1:iterations do
  . set result=$$lua(">func")
- quit
-
+ set elapsed=$$lua(">stop")
+ quit elapsed
 
 ; invoke from command line: test^%benchmark <command> <iterations> <hashSize>
 test()
@@ -48,8 +56,10 @@ test()
 
  do init()
  set msg=$extract(randomMB,1,size)
- xecute "do "_command_"()"
+ s elapsed=$$@command
+ w elapsed/iterations_" "_elapsed_" ",!
  ;w !,result
+ w elapsed
  quit
 
 

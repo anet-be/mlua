@@ -6,15 +6,15 @@
 LUA := lua
 YDB_DIST := $(shell pkg-config --variable=prefix yottadb)
 YDB_INSTALL := $(YDB_DIST)/plugin
-
+CC := gcc
 
 # first target is the default
-test: lua_sha
+test: lua_tools
 	$(MAKE) cmumps go_brocr --no-print-directory || $(MAKE) bad_deps -s
 	./benchmark.py
 
 # alternative target for users who do not permission to access cmumps or qtechng -- though it won't have anything to compare against
-test_lua_only: lua_sha
+test_lua_only: lua_tools
 	./benchmark.py
 
 
@@ -30,19 +30,28 @@ bad_deps:
 	&& false
 
 # ~~~ pure_lua_SHA: fetch
-
+lua_tools: lua_sha lua_cputime
 lua_sha: sha2.lua
-
-build/pure_lua_SHA/sha2.lua:
-	mkdir -p build
-	cd build && git clone https://github.com/Egor-Skriptunoff/pure_lua_SHA.git
-.PRECIOUS:	build/
-
 sha2.lua: build/pure_lua_SHA/sha2.lua
 	cp build/pure_lua_SHA/sha2.lua .
+build/pure_lua_SHA/sha2.lua:
+	@echo "Fetching lua-sha from github"
+	cd build && git clone https://github.com/Egor-Skriptunoff/pure_lua_SHA.git
+
+
+# ~~~ lua_cputime: fetch & build
+lua_cputime: cputime.so
+	@: #noop
+cputime.so: build/lua-cputime/src/lua-cputime.c
+	cd build/lua-cputime &&  $(CC) -O2 -fPIC -I/usr/local/include -c src/lua-cputime.c -o src/lua-cputime.o
+	cd build/lua-cputime &&  $(CC) -shared -o cputime.so src/lua-cputime.o
+	cp build/lua-cputime/cputime.so .
+build/lua-cputime/src/lua-cputime.c:
+	@echo "Fetching lua-cputime measuring tool from github"
+	cd build && git clone --branch v0.1.0-0 https://github.com/moznion/lua-cputime.git
+
 
 # ~~~ brocr: fetch and build it if it is accessible
-
 go_brocr: brocr
 	@: #noop
 brocr: brocr.go
@@ -52,11 +61,9 @@ brocr.go:
 	output=$$(qtechng source co /universe/os/brocr.go 2>&1); \
 	  echo "$$output" | grep '"file":.*brocr.go' \
 	  || (echo "$$output"; false)
-.PRECIOUS: brocr.go
+
 
 # ~~~ cmumps: fetch and build it if it is accessible
-
-CC = gcc
 CFLAGS = -std=c99 -pedantic -Wall -Wno-unknown-pragmas
 GTM_INCLUDES=-I$(YDB_DIST) -L$(YDB_DIST) -lyottadb -Wl,-rpath,$(YDB_DIST)
 UTF8PROC=utf8proc/utf8proc.c
@@ -70,10 +77,8 @@ cstrlib.so cstrlib.xc: build/cmumps/cstrlib.c
 	cp build/cmumps/cstrlib.xc .
 	sed -i "1 s|.*/cstrlib.so|cstrlib.so|" cstrlib.xc
 build/cmumps/cstrlib.c:
-	mkdir -p build
 	@echo "Fetching cmumps from its Brocade git repository"
 	cd build && git clone git@bitbucket.org:anetbrocade/cmumps.git
-.PRECIOUS: build/cmumps/cstrlib.c
 
 
 # Debug: print out all variables defined in this makefile
@@ -82,15 +87,16 @@ vars:
 	@echo -e $(foreach v,$(.VARIABLES),$(if $(filter file, $(origin $(v)) ), '\n$(v)=$(value $(v))') )
 
 
+$(shell mkdir -p build)		# So I don't need to do it in every target
+
 clean:
-	rm -f *.time
-	rm -f cstrlib.so cstrlib.xc
-	rm -f brocr brocr.go
+	rm -f *.time *.so cstrlib.xc brocr
 	$(MAKE) -C build/cmumps clean --no-print-directory
 refresh: clean
+	rm -f brocr.go
 	rm -rf build
 
-.PHONY: test test_lua_only lua_sha cmumps bad_deps go_brocr
+.PHONY: test test_lua_only lua_sha cmumps bad_deps go_brocr lua_tools
 .PHONY: clean clean-cmumps
-.SECONDARY: # Prevent deletion of targets -- and prevent rebuilding when phony target LUA_BUILD_VERSION is a dependency
+.SECONDARY: # Prevent deletion of targets
 .DELETE_ON_ERROR: # Prevent leaving previous targets lying around and thinking they're up to date if you don't notice a make error
