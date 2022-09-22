@@ -9,6 +9,12 @@ lua(lua)
  if $&mlua.lua(lua,.out) w out set $ecode=",U1,"
  quit:$quit out quit
 
+detectLuaModule()
+ new module
+ set module=$piece($zcmdline," ",1)
+ write $$lua("return pcall(require, '"_module_"')")
+ quit
+
 init()
  ; get random 1MB string from Lua so we can have a reproducable one (fixed seed)
  ; Lua is faster, anyway (see notes in randomMB.lua)
@@ -38,9 +44,20 @@ cmumpsSHA()
  set elapsed=$$lua(">stop")
  quit elapsed
 
-luaSHA()
+pureluaSHA()
  new lua,i
- do lua(" ydb=require'yottadb' sha=require'sha2' function func() return sha.sha512(ydb.get('msg')) end ")
+ do lua(" ydb=require'yottadb' sha=require'sha2' ")
+ do lua(" function func() return sha.sha512(ydb.get('msg')) end ")
+ do lua(">start")
+ for i=1:1:iterations do
+ . set result=$$lua(">func")
+ set elapsed=$$lua(">stop")
+ quit elapsed
+
+luaCLibSHA()
+ new lua,i
+ do lua(" ydb=require'yottadb' hmac=require'hmac' ")
+ do lua(" function func() ctx=hmac.sha512() ctx:update(ydb.get('msg')) return ctx:final() end ")
  do lua(">start")
  for i=1:1:iterations do
  . set result=$$lua(">func")
@@ -56,10 +73,9 @@ test()
 
  do init()
  set msg=$extract(randomMB,1,size)
- s elapsed=$$@command
- w elapsed/iterations_" "_elapsed_" ",!
- ;w !,result
- w elapsed
+ set elapsed=$$@command
+ write result,!
+ write elapsed
  quit
 
 
