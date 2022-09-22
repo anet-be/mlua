@@ -213,3 +213,4 @@ To perform a set of speed tests, do:
 make benchmarks
 ```
 
+Some benchmarks are installed by the Makefile. Others will require manual installation of certain Lua modules: for example `luarocks install hmac` to get a SHA library for lua. But running `make benchmarks` will note these requirements for you. There is further comment on these benchmarks in the [benchmarks/README.md](benchmarks/README.md).
