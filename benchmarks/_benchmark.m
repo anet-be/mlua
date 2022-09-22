@@ -1,4 +1,4 @@
-; Benchmark comparison of SHA2 via M, MLua, and C
+; Benchmark comparison of SHA2 via M, Lua, and C
 
 %benchmark()
  do test() quit
@@ -33,9 +33,9 @@ cmumpsSHA()
 
 luaSHA()
  new lua,i
- do lua(" ydb=require'yottadb' sha=require'sha2' ")
+ do lua(" ydb=require'yottadb' sha=require'sha2' function func() return sha.sha512(ydb.get('msg')) end ")
  for i=1:1:iterations do
- . set result=$$lua(" return sha.sha512(ydb.get('msg')) ")
+ . set result=$$lua(">func")
  quit
 
 
@@ -49,6 +49,7 @@ test()
  do init()
  set msg=$extract(randomMB,1,size)
  xecute "do "_command_"()"
+ ;w !,result
  quit
 
 
