@@ -132,7 +132,7 @@ On success, `mlua.lua()` fills .output (if given) with the return value of the c
 * nil ==> "" (empty string)
 * boolean ==> "0" or "1"
 * number ==> decimal string representation. Numbers >= 1e14 are coded as "1E+14": use M's unary + in front of them to force numeric interpretation
-* string ==> a string which may contain NUL characters. It is truncated at 2048 characters (changeable in mlua.xc) which [YDB says here](https://docs.yottadb.com/ProgrammersGuide/extrout.html#print-error-messages) is enough to return any of its error message. If a longer return value is required, Lua could return it via a ydb local using ydb.set('local', value)
+* string ==> a string which may contain NUL characters. It is truncated at 1048576 characters, the maximum YDB string length. This makes YDB allocate the whole 1MB for return data, but it's worth it since return strings this way is considerably faster than using ydb.set().
 * other types ==> "(typename)"
 
 On error, .output (if given) returns the error message; `open()` returns 0 and `lua()` returns nonzero on error. Note that the value return by `lua()` is currently equal to -1. This may be enhanced in the future to also return positive integers equal to ERRNO or YDB errors whenever YDB functions called by Lua are the cause of the error. However, for now, all errors return -1 and any YDB error code is encoded into the error message just like any other Lua error (Lua 5.4 does not yet support coded or named errors).
