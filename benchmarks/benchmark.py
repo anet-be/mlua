@@ -111,7 +111,8 @@ def main():
 
         luaStripCharsPrm = {10:100_000, 1000:50_000, 1e6:100},
         luaStripCharsDb = {10:100_000, 1000:50_000, 1e6:100},
-        cmumpsStripChars = {10:500_000, 1000:100_00, 1e6:10},
+        cmumpsStripChars = {10:500_000, 1000:10_000, 1e6:10},
+        mStripChars = {10:100_000, 1000:100_000, 1e6:100},
     )
 
     # Only run cmumps if it was able to be installed
@@ -127,7 +128,7 @@ def main():
                 try:
                     raw_time, user_time = benchmark('test', routine, str(iterations), str(size))
                 except ValueError as e:
-                    e.args = (f"{e.args[0]} -- while trying to run routine {routine}",) + e.args[1:]
+                    e.args = (f"{e.args[0]} -- while trying to benchmark routine {routine}",) + e.args[1:]
                     raise e
                 while raw_time < init_time*3:
                     print(f"{routine}({tohuman(size)}B) x{iterations} test is swamped by init time. Iterations should be increased. Doubling and re-testing.")
