@@ -171,20 +171,20 @@ cmumpsSHA(iterations)
 pureluaSHA(iterations)
  new elapsed,i
  do lua(" ydb=require'yottadb' sha=require'sha2' ")
- do lua(" function func() return sha.sha512(ydb.get('msg')) end ")
+ do lua(" function func(msg) return sha.sha512(msg) end ")
  do lua(">start")
  for i=1:1:iterations do
- . set result=$$lua(">func")
+ . set result=$$lua(">func",msg)
  set elapsed=$$lua(">stop")
  quit elapsed
 
 luaCLibSHA(iterations)
  new elapsed,i
  do lua(" ydb=require'yottadb' hmac=require'hmac' ")
- do lua(" function func() ctx=hmac.sha512() ctx:update(ydb.get('msg')) return ctx:final() end ")
+ do lua(" function func(msg) ctx=hmac.sha512() ctx:update(msg) return ctx:final() end ")
  do lua(">start")
  for i=1:1:iterations do
- . set result=$$lua(">func")
+ . set result=$$lua(">func",msg)
  set elapsed=$$lua(">stop")
  quit elapsed
 
