@@ -30,7 +30,7 @@ def calc_init_time():
         Note: I tried to get rid of the init time compensation by making it neglegible,
         but actually, most of it is ydb load time (~30ms) which we can't reduce
     """
-    init_time, _ = benchmark('init', ignore_user_time=True, repetitions=10)
+    _, init_time, _ = benchmark('init', ignore_user_time=True, repetitions=10)
     print(f"init: {init_time:0.3f}s")
     return init_time
 
@@ -59,10 +59,12 @@ def benchmark(mroutine, *args, ignore_user_time=False, repetitions=int(os.getenv
     """ Run mroutine from _benchmark.m repetitions times and return the average time taken
         args = command line parameters passed to M routine
         ignore_user_time: set to True to ignore the user time recorded by MLua -- used to init's real time
-        return real_time, user_time (in seconds)
+        return retval, real_time, user_time (in seconds)
+          retval is the return value of the function, which it must print on the second-to-last output line
           'real_time' is the amount of actual time taken incuding M function init (setup)
-          'user_time' is the amount of user-only cpu time taken for just the inner loop
-            (measured using MLua after M init is complete -- i.e. more accurate)
+          'user_time' is the amount of user-only cpu time taken for just the inner loop,
+            which the function must print on the last time (measured using MLua after M init
+            is complete -- i.e. more accurate than real_time)
           The real time is necessary to compare because goSHA includes lots of
             system_time latency -- which the user_time doesn't capture
         Note: I have tinkered with using minimum instead of average, but average is more repeatable
@@ -72,9 +74,14 @@ def benchmark(mroutine, *args, ignore_user_time=False, repetitions=int(os.getenv
     user_timings = []
     for _i in range(repetitions):
         process_info, raw_real_time = measure_time(func)
+        lines = process_info.lines
         if Debug >= 2:
-            for line in process_info.lines[:-1]:
+            for line in lines[:-2]:
                 print(line)
+        # get result of routine; e.g. hash value from SHA or length from Strip
+        retval = ''
+        if len(lines) >= 2:
+            retval = process_info.lines[-2]
         raw_user_time = 0.0 if ignore_user_time else float(process_info.lines[-1]) / 1e6
         real_timings += [raw_real_time]
         user_timings += [raw_user_time]
@@ -83,7 +90,7 @@ def benchmark(mroutine, *args, ignore_user_time=False, repetitions=int(os.getenv
     if Debug >= 3:
         print(f"real_time: {real_time}")
         print(f"user_time: {user_time}")
-    return real_time, user_time
+    return retval, real_time, user_time
 
 def tohuman(number, dp=0):
     """ Return human-readable version of a number with dp decimal points of precision """
@@ -97,44 +104,64 @@ def tohuman(number, dp=0):
         return f"{number/1000:.{dp}f}k"
     return f"{int(number)}"
 
+
+# ~~~ Define list of tests to perform
+Sizes = [10, 1000, 1_000_000]
+
+# List of mroutine test names {datasize:iterations, datasize:iterations, ...}
+Routines = OrderedDict(
+    # dicts of:  hash_size:iterations
+    # set so that each test takes a couple of seconds -- enough so load time doesn't swamp result
+    goSHA       = {10:200, 1000:200, 1_000_000:1},
+    pureluaSHA = {10:10_000, 1000:2000, 1_000_000:2},
+    luaCLibSHA = {10:100_000, 1000:100_000, 1_000_000:100},
+    cmumpsSHA = {10:100_000, 1000:100_000, 1_000_000:100},
+
+    luaStripCharsPrm = {10:100_000, 1000:50_000, 1_000_000:100},
+    luaStripCharsDb = {10:100_000, 1000:50_000, 1_000_000:100},
+    cmumpsStripChars = {10:500_000, 1000:10_000, 1_000_000:10},
+    mStripChars = {10:100_000, 1000:100_000, 1_000_000:100},
+)
+
+# Various SHA512 results expected -- to check whether the test is running correctly
+class Expected_results:
+    goSHA = pureluaSHA = luaCLibSHA = cmumpsSHA = {
+        10: 'ec0088f44b042bff7785de1794f2cc99db830a5680bfd6063a6bedf777fbafbeb2f1d8990b7619ab4e041ea9ff5331d9fdecb5643faf8aed45542d2fd55b8163',
+        1000: '6ba5ce80264c4eee26893e84bfa0ac7877dc7c5609a86a366f5dc5a44584fb730ff18759c03abc3caffd734ba59d77b9bdae4faa99e0c2ab0d603ce72fbc0e1a',
+        1_000_000: '89a5e9619e5fb1ad08d0bcf15dcca50c108162b4c812cea0801f28e8c76a3d9d081d4c2e3cb30a3e06e07b63ebd4a81d4115775e65d6806e9a8550baae6ad1fa',
+    }
+    luaStripCharsPrm = luaStripCharsDb = cmumpsStripChars = mStripChars = {
+        10:'8', 1000:'998', 1_000_000:'999998',
+    }
+
+
 def main():
     print("Benchmarks produced below are calculated by running each function in a tight M loop many times.")
     init_time = calc_init_time()    # calc M initialization time to compensate for
-    sizes = [10, 1000, 1e6]
-    routines = OrderedDict(
-        # dicts of:  hash_size:iterations
-        # set so that each test takes a couple of seconds -- enough so load time doesn't swamp result
-        goSHA       = {10:200, 1000:200, 1e6:1},
-        pureluaSHA = {10:10_000, 1000:2000, 1e6:2},
-        luaCLibSHA = {10:100_000, 1000:100_000, 1e6:100},
-        cmumpsSHA = {10:100_000, 1000:100_000, 1e6:100},
-
-        luaStripCharsPrm = {10:100_000, 1000:50_000, 1e6:100},
-        luaStripCharsDb = {10:100_000, 1000:50_000, 1e6:100},
-        cmumpsStripChars = {10:500_000, 1000:10_000, 1e6:10},
-        mStripChars = {10:100_000, 1000:100_000, 1e6:100},
-    )
-
     # Only run cmumps if it was able to be installed
-    if not os.path.exists('cstrlib.so'):  routines.pop('cmumpsSHA'); print(f"Skipping uninstalled cmumpsSHA. To install, run: make")
-    if not os.path.exists('brocr'):  routines.pop('goSHA'); print(f"Skipping uninstalled goSHA. To install, run: make")
-    if not detect_lua_module('hmac'): routines.pop('luaCLibSHA'); print(f"Skipping uninstalled luaCLibSHA. To install, run: luarocks install hmac")
+    if not os.path.exists('cstrlib.so'):  Routines.pop('cmumpsSHA'); print(f"Skipping uninstalled cmumpsSHA. To install, run: make")
+    if not os.path.exists('brocr'):  Routines.pop('goSHA'); print(f"Skipping uninstalled goSHA. To install, run: make")
+    if not detect_lua_module('hmac'): Routines.pop('luaCLibSHA'); print(f"Skipping uninstalled luaCLibSHA. To install, run: luarocks install hmac")
 
-    print(f"Running {len(sizes)*len(routines)} tests ...")
+    print(f"Running {len(Sizes)*len(Routines)} tests ...")
     results = defaultdict(lambda: defaultdict(dict))
-    for size in sizes:
-        for routine, iterdict in routines.items():
+    for size in Sizes:
+        for routine, iterdict in Routines.items():
                 iterations = iterdict[size]
                 try:
-                    raw_time, user_time = benchmark('test', routine, str(iterations), str(size))
+                    retval, raw_time, user_time = benchmark('test', routine, str(iterations), str(size))
                 except ValueError as e:
                     e.args = (f"{e.args[0]} -- while trying to benchmark routine {routine}",) + e.args[1:]
                     raise e
+                # repeat with greater double the iterations if the test was so short that it was swamped by init time
                 while raw_time < init_time*3:
-                    print(f"{routine}({tohuman(size)}B) x{iterations} test is swamped by init time. Iterations should be increased. Doubling and re-testing.")
+                    print(f"Warning: {routine}({tohuman(size)}B) x{iterations} test is swamped by init time. Iterations should be increased. Doubling and re-testing.")
                     iterations *= 2
                     iterdict[size] = iterations
-                    raw_time, user_time = benchmark('test', routine, str(iterations), str(size))
+                    retval, raw_time, user_time = benchmark('test', routine, str(iterations), str(size))
+                expected_result = getattr(Expected_results, routine)[size]
+                if retval != expected_result:
+                    print(f"Warning: {routine} returned: {retval!r} instead of the expected result: {expected_result!r}")
                 real_time = raw_time - init_time
                 real_time_per_iter = real_time / iterations
                 user_time_per_iter = user_time / iterations
@@ -153,9 +180,9 @@ def main():
             print()
 
     print("\nREAL time measured")
-    print_results(results, 'real', sizes)
+    print_results(results, 'real', Sizes)
     print("\nUSER time measured")
-    print_results(results, 'user', sizes)
+    print_results(results, 'user', Sizes)
 
 
 if __name__ == '__main__':
