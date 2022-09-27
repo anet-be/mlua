@@ -145,7 +145,7 @@ def main():
     print("Benchmarks produced below are calculated by running each function in a tight M loop many times.")
     init_time = calc_init_time()    # calc M initialization time to compensate for
     # Only run cmumps if it was able to be installed
-    if not os.path.exists('cstrlib.so'):  Routines.pop('cmumpsSHA'); print(f"Skipping uninstalled cmumpsSHA. To install, run: make")
+    if not os.path.exists('cstrlib.so'):  Routines.pop('cmumpsSHA'); Routines.pop('cmumpsStripChars'); print(f"Skipping uninstalled cmumpsSHA. To install, run: make")
     if not os.path.exists('brocr'):  Routines.pop('goSHA'); print(f"Skipping uninstalled goSHA. To install, run: make")
     if not detect_lua_module('hmac'): Routines.pop('luaCLibSHA'); print(f"Skipping uninstalled luaCLibSHA. To install, run: luarocks install hmac")
 

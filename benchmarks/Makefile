@@ -22,8 +22,8 @@ test_lua_only: lua_tools
 bad_deps:
 	@ ! [ -f build/cmumps/cstrlib.c -a -f brocr.go ] \
 	&& echo \
-	&& echo "This may have failed because you do not have access to (proprietary) cmumps or qtechng" \
-	&& echo "(from https://www.uantwerpen.be/nl/projecten/anet/brocade/)." \
+	&& echo "This may have failed because you have not set up ssh to have access to" \
+	&& echo "(proprietary) cmumps and qtechng (from https://www.uantwerpen.be/nl/projecten/anet/brocade/)." \
 	&& echo "If that is the case, you can produce just the MLua benchmarks using 'make test_lua_only'," \
 	&& echo "though you obviously won't be able to compare against those proprietary C and Go benchmarks" \
 	&& echo \

@@ -10,9 +10,9 @@ LUA_BUILD_VERSION:=5.4.4
 # Select Lua binary and get its version
 LUA:=lua
 LUA_VERSION:=$(shell $(LUA) -e 'print(string.match(_VERSION, " ([0-9]+[.][0-9]+)"))')
-# location to install mlua module to
-LUA_LIB_INSTALL=/usr/local/lib/lua/$(LUA_VERSION)			# where .so file installs
-LUA_MOD_INSTALL=/usr/local/share/lua/$(LUA_VERSION)	# where .lua file installs
+# location to install mlua module to: .so and .lua files, respectively
+LUA_LIB_INSTALL=/usr/local/lib/lua/$(LUA_VERSION)
+LUA_MOD_INSTALL=/usr/local/share/lua/$(LUA_VERSION)
 
 # Select which version tag of lua-yottadb to fetch
 LUA_YOTTADB_VERSION=master
@@ -153,6 +153,8 @@ test:
 
 benchmarks:
 	$(MAKE) -C benchmarks
+test_lua_only:
+	$(MAKE) -C benchmarks test_lua_only
 
 
 # ~~~ Install
@@ -163,9 +165,9 @@ install: mlua.so mlua.xc _yottadb.so yottadb.lua
 		echo "Cannot install MLua (which is built against lua-$(LUA_BUILD_VERSION)) into the target Lua (which is version $(LUA_VERSION))." && \
 		echo "Either change your Lua install target in the Makefile or install the version of Lua that you have built against, using 'make install-lua'." && \
 		false )
-	install -D mlua.so mlua.xc $(YDB_INSTALL)
-	install -D _yottadb.so $(LUA_LIB_INSTALL)
-	install -D yottadb.lua $(LUA_MOD_INSTALL)
+	install -D mlua.so mlua.xc -t $(YDB_INSTALL)
+	install -D _yottadb.so -t $(LUA_LIB_INSTALL)
+	install -D yottadb.lua -t $(LUA_MOD_INSTALL)
 
 install-lua: build/lua-$(LUA_BUILD_VERSION)/install/lib/liblua.a
 	@echo Installing Lua $(LUA_BUILD_VERSION) to your system
@@ -173,5 +175,5 @@ install-lua: build/lua-$(LUA_BUILD_VERSION)/install/lib/liblua.a
 	$(MAKE) -C build/lua-$(LUA_BUILD_VERSION)  install
 
 
-.PHONY: lua lua-%  lua-yottadb  all build test vars install install-lua-% benchmarks
+.PHONY: lua lua-%  lua-yottadb  all build test vars install install-lua-% benchmarks test_lua_only
 .PHONY: clean clean-luas clean-lua-% clean-lua-yottadb refresh

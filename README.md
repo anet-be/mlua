@@ -169,7 +169,14 @@ MLua also uses [Lua](https://www.lua.org/) (copyright © 1994–2021 Lua.org, PU
 2. git clone `<mlua repository>` mlua && cd mlua
 3. make
 4. sudo make install       # install MLua
-5. sudo make install-lua   # optional, if you also want to install the Lua version you built here into your system
+
+If you also want to install the Lua version you built here into your system, do:
+
+```shell
+sudo make install-lua
+```
+
+You may also need to double-check that /usr/local/bin is in your path and/or run `hash lua` to refresh bash's cached PATH so it can find the new /usr/local/bin/lua.
 
 If you need to use a different Lua version or install into a non-standard YDB directory, change the last line to something like:
 
