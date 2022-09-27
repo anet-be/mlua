@@ -120,13 +120,13 @@ Routines = OrderedDict(
     # set so that each test takes a couple of seconds -- enough so load time doesn't swamp result
     goSHA       = {10:200, 1000:200, 1_000_000:1},
     pureluaSHA = {10:10_000, 1000:2000, 1_000_000:2},
-    luaCLibSHA = {10:100_000, 1000:100_000, 1_000_000:100},
+    luaCLibSHA = {10:200_000, 1000:100_000, 1_000_000:100},
     cmumpsSHA = {10:100_000, 1000:100_000, 1_000_000:100},
 
-    luaStripCharsPrm = {10:100_000, 1000:50_000, 1_000_000:100},
+    luaStripCharsPrm = {10:200_000, 1000:100_000, 1_000_000:100},
     luaStripCharsDb = {10:100_000, 1000:50_000, 1_000_000:100},
-    cmumpsStripChars = {10:500_000, 1000:10_000, 1_000_000:10},
-    mStripChars = {10:100_000, 1000:100_000, 1_000_000:100},
+    cmumpsStripChars = {10:1000_000, 1000:10_000, 1_000_000:10},
+    mStripChars = {10:100_000, 1000:20_000, 1_000_000:100},
 )
 
 # Various SHA512 results expected -- to check whether the test is running correctly

@@ -216,7 +216,8 @@ luaCLibSHA(iterations)
  i $d(PAinput)>1 d
  . s ln=""
  . f  s ln=$o(PAinput(ln)) q:ln=""  d
- .. u pipe w PAinput(ln),PDeol i PDdebug u $p w "writing to pipe ",PAinput(ln),!
+ .. u pipe f i=1:32000:$l(PAinput(ln)) w $e(PAinput(ln),i,i+32000-1) s $x=0
+ .. u pipe w PDeol i PDdebug u $p w "writing to pipe ",PAinput(ln),!
  .. q
  . u pipe x "w /EOF" i PDdebug u $p
  . q
