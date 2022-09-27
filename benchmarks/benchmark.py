@@ -6,14 +6,18 @@ import subprocess
 import resource
 from collections import OrderedDict, defaultdict, namedtuple
 
-#Set Debug to 1 to print process timings, 2 to also print hash results, etc., and 3 to also print raw timings
+#Set Debug to >=1 to print process timings, and >=3 to also print raw timings
 Debug = 0   # increase to >0 for debug output
 
 # environment variables needed to run ydb with source files in the current directory
 Env = {
     'ydb_xc_cstrlib': './cstrlib.xc',
     'ydb_routines': '. ' + os.environ['ydb_routines'],
-    'LUA_CPATH': './?.so;;',
+
+    # use .lua & .so files built by mlua in both . and .. in preference to others in the path
+    # this ensures we are testing against our own builds instead of system installed libs
+    'LUA_PATH': './?.lua;../?.lua;;',
+    'LUA_CPATH': './?.so;../?.so;;',
 }
 
 
@@ -40,12 +44,14 @@ def run_mroutine(mroutine, *args):
     env = os.environ.copy()
     env.update(Env)
     process_info = subprocess.run(['gtm', '-run', mroutine+'^%benchmark'] + list(args), env=env, capture_output=True)
-    try:
-        process_info.stdout = process_info.stdout.decode('utf-8')
-    except UnicodeDecodeError as e:
-        e.reason += ' in:\n' + repr(process_info.stdout[:100]) + '...'
-        raise e
-    process_info.lines = process_info.stdout.strip().split('\n')
+    lines = []
+    # Decode lines to utf-8 if possible, otherwise store as byte arrays
+    for line in process_info.stdout.strip(b'\n').split(b'\n'):
+        try:
+            lines.append(line.decode('utf-8'))
+        except UnicodeDecodeError as e:
+            lines.append(line)
+    process_info.lines = lines
     return process_info
 
 def detect_lua_module(module):
@@ -75,9 +81,9 @@ def benchmark(mroutine, *args, ignore_user_time=False, repetitions=int(os.getenv
     for _i in range(repetitions):
         process_info, raw_real_time = measure_time(func)
         lines = process_info.lines
-        if Debug >= 2:
-            for line in lines[:-2]:
-                print(line)
+        # Print any debugging output produced by the mroutine (lines before the last two)
+        for line in lines[:-2]:
+            print('>', line)
         # get result of routine; e.g. hash value from SHA or length from Strip
         retval = ''
         if len(lines) >= 2:
@@ -126,9 +132,9 @@ Routines = OrderedDict(
 # Various SHA512 results expected -- to check whether the test is running correctly
 class Expected_results:
     goSHA = pureluaSHA = luaCLibSHA = cmumpsSHA = {
-        10: 'ec0088f44b042bff7785de1794f2cc99db830a5680bfd6063a6bedf777fbafbeb2f1d8990b7619ab4e041ea9ff5331d9fdecb5643faf8aed45542d2fd55b8163',
-        1000: '6ba5ce80264c4eee26893e84bfa0ac7877dc7c5609a86a366f5dc5a44584fb730ff18759c03abc3caffd734ba59d77b9bdae4faa99e0c2ab0d603ce72fbc0e1a',
-        1_000_000: '89a5e9619e5fb1ad08d0bcf15dcca50c108162b4c812cea0801f28e8c76a3d9d081d4c2e3cb30a3e06e07b63ebd4a81d4115775e65d6806e9a8550baae6ad1fa',
+        10: '8772d22407ac282809a75706f91fab898adea0235f1d304d85c1c48650c283413e533eba63880c51be67e35dfc3433ddbe78e73d459511aaf29251a64a803884',
+        1000: '7319dbae7e935f940b140f8b9d8e4d5e2509d634fb67041d8828833dcf857cfecda45282b54c0a77e2875185381d95791594dbf1a0f3db5cae71d95617287c18',
+        1_000_000: '7a0712c75269ad5fbf829e04f116701899bcbefc5f07e4610fbaddf493ee2b917f84f1f0107f0ee95b420efc3c4cd6b687ee944a52351fc0c52eba260b11bed6',
     }
     luaStripCharsPrm = luaStripCharsDb = cmumpsStripChars = mStripChars = {
         10:'8', 1000:'998', 1_000_000:'999998',

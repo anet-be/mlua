@@ -21,10 +21,11 @@ detectLuaModule()
 ; Get random 1MB string from Lua so we can have a reproducable one (fixed seed)
 ; Lua is faster, anyway (see notes in randomMB.lua)
 init()
- do lua(" rand=require'randomMB' ydb=require'yottadb' ydb.set('randomMB',rand.randomMB()) ")
+ do lua(" ydb=require'yottadb' rand=require'randomMB' ")
  do lua(" cputime=require'cputime' ")
  do lua(" function start() start_child=cputime.get_children_process_cputime() start_time=cputime.get_process_cputime() end ")
  do lua(" function stop() r1=cputime.get_process_cputime()-start_time r2=cputime.get_children_process_cputime()-start_child return r1+r2 end ")
+ set randomMB=$$lua(" return rand.randomMB() ")
  quit
 
 ; Invoke test() from command line: test^%benchmark <command> <iterations> <hashSize>
@@ -44,7 +45,7 @@ test()
 
 ; ~~~ strStrip benchmarks
 
-luaStripSetup()
+stripSetup()
  set chars=" "_$char(9,13,10,12,22)  ; example whitespace chars to strip
  set msg=" "_$extract(msg,1,$length(msg)-2)_" "  ; ensure whitespace either end to strip, just to make it a bit realistic
  ; setup lua
@@ -58,7 +59,7 @@ luaStripCharsDb(iterations)
  ; You can also use Lua to replace % as follows, but it adds about 10% overhead (for small msg strings)
  ;   "if string.find(chars, '%', 1, true) then chars=string.gsub(chars, '%%', '%%%%') end"
  new elapsed,i,stripped,chars
- d luaStripSetup()
+ d stripSetup()
  ; the first match below is a speedup to avoid very inefficient operation on strings where every character gets stripped
  do lua(" function func() s=ydb.get('msg') stripped=match(s,'^()['..chars..']*$') and '' or match(s,'^['..chars..']*(.*[^'..chars..'])') ydb.set('stripped', stripped) end ")
 
@@ -72,7 +73,7 @@ luaStripCharsDb(iterations)
 luaStripCharsPrm(iterations)
  ; same as luaStripChrsDb() except passes/returns the string as function parameters rather than ydb.get/set -- see if it's faster
  new elapsed,i,stripped,chars
- d luaStripSetup()
+ d stripSetup()
 
  ; the first match below is a speedup to avoid very inefficient operation on strings where every character gets stripped
  do lua(" function func(s) return match(s,'^()['..chars..']*$') and '' or match(s,'^['..chars..']*(.*[^'..chars..'])') end ")
@@ -87,8 +88,7 @@ luaStripCharsPrm(iterations)
 
 cmumpsStripChars(iterations)
  new elapsed,i,stripped,chars
- set chars=" "_$char(9,13,10,12,22)  ; example whitespace chars to strip
- set msg=" "_$extract(msg,1,$length(msg)-2)_" "  ; add whitespace either end to strip, just to make it a bit realistic
+ d stripSetup()
 
  do lua(">start")
  for i=1:1:iterations do
@@ -99,8 +99,7 @@ cmumpsStripChars(iterations)
 
 mStripChars(iterations)
  new elapsed,i,stripped,chars
- set chars=" "_$char(9,13,10,12,22)  ; example whitespace chars to strip
- set msg=" "_$extract(msg,1,$length(msg)-2)_" "  ; add whitespace either end to strip, just to make it a bit realistic
+ d stripSetup()
 
  do lua(">start")
  for i=1:1:iterations do
