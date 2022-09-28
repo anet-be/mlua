@@ -135,13 +135,16 @@ allvars:
 clean:
 	rm -f *.o *.so try
 	rm -rf tests
+	$(MAKE) -C benchmarks clean
 
 # clean everything we've built
 cleanall: clean clean-luas clean-lua-yottadb
+	$(MAKE) -C benchmarks clean
 
 # clean & wipe build directory, including external downloads -- as if we'd only just now checked out the mlua source for the first time
 refresh: clean
 	rm -rf build
+	$(MAKE) -C benchmarks refresh
 
 
 # ~~~ Test
