@@ -27,6 +27,8 @@ bad_deps:
 	&& echo "If that is the case, you can produce just the MLua benchmarks using 'make test_lua_only'," \
 	&& echo "though you obviously won't be able to compare against those proprietary C and Go benchmarks" \
 	&& echo \
+	&& echo "Try: make test_lua_only" \
+	&& echo \
 	&& false
 
 # ~~~ pure_lua_SHA: fetch
@@ -42,13 +44,20 @@ build/pure_lua_SHA/sha2.lua:
 # ~~~ lua_cputime: fetch & build
 lua_cputime: cputime.so
 	@: #noop
-cputime.so: build/lua-cputime/src/lua-cputime.c
+cputime.so: build/lua-cputime/src/lua-cputime.c lua.h
 	cd build/lua-cputime &&  $(CC) -O2 -fPIC -I/usr/local/include -c src/lua-cputime.c -o src/lua-cputime.o
 	cd build/lua-cputime &&  $(CC) -shared -o cputime.so src/lua-cputime.o
 	cp build/lua-cputime/cputime.so .
 build/lua-cputime/src/lua-cputime.c:
 	@echo "Fetching lua-cputime measuring tool from github"
 	cd build && git clone --branch v0.1.0-0 https://github.com/moznion/lua-cputime.git -c advice.detachedHead=false
+lua.h:
+	@ # Check that lua.h is in the compiler path and warn the user appropriately if not
+	@ echo '#include "lua.h"' | $(CC) -E - >/dev/null \
+	|| ( echo \
+	&& echo "Error: lua.h is not in the $(CC) path. Have you run 'make install-lua' from $(dir $(shell pwd))?" \
+	&& echo \
+	&& false )
 
 
 # ~~~ brocr: fetch and build it if it is accessible
@@ -96,7 +105,7 @@ refresh: clean
 	rm -f brocr.go
 	rm -rf build
 
-.PHONY: test test_lua_only lua_sha cmumps bad_deps go_brocr lua_tools
+.PHONY: test test_lua_only lua_sha cmumps bad_deps go_brocr lua_tools lua.h
 .PHONY: clean clean-cmumps
 .SECONDARY: # Prevent deletion of targets
 .DELETE_ON_ERROR: # Prevent leaving previous targets lying around and thinking they're up to date if you don't notice a make error
