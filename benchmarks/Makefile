@@ -48,7 +48,7 @@ cputime.so: build/lua-cputime/src/lua-cputime.c
 	cp build/lua-cputime/cputime.so .
 build/lua-cputime/src/lua-cputime.c:
 	@echo "Fetching lua-cputime measuring tool from github"
-	cd build && git clone --branch v0.1.0-0 https://github.com/moznion/lua-cputime.git
+	cd build && git clone --branch v0.1.0-0 https://github.com/moznion/lua-cputime.git -c advice.detachedHead=false
 
 
 # ~~~ brocr: fetch and build it if it is accessible

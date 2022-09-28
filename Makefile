@@ -149,7 +149,7 @@ refresh: clean
 test:
 	mkdir -p tests
 	python3 test.py
-	env ydb_routines="./tests $(ydb_routines)" ydb -run "^tests"
+	#env ydb_routines="./tests $(ydb_routines)" ydb -run "^tests"
 
 benchmarks:
 	$(MAKE) -C benchmarks
