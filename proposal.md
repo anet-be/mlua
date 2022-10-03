@@ -30,8 +30,8 @@ end
 
 The problems are that:
 
-1. It is long-winded: oakkey has to be assigned created explicitly to avoid repeated creation every lookup.
-2. Iterating string (`subscripts`) takes an extra line to define oaktree: iterating dbase objects would be more intuitive
+1. It is long-winded: oakkey has to be created explicitly, to avoid repeated creation every lookup.
+2. Iterating string subscripts (`sub`) takes an extra lookup line: `oaktree=oakkey(sub)` but iterating dbase objects would be more intuitive.
 3. Explicit access to .value fields feels like unnecessary noise.
 
 ## Solution
@@ -47,18 +47,18 @@ end
 
 Essentially, the database table `oaks` can now be accessed more like a regular table in Lua -- with either dot .notation or bracket[notation], and the use of the Lua standard pairs() iterators. Yet this new syntax retains the underlying efficiency of the database because table values are still only populated when they're needed, and they remain in binary format.
 
-The work needed to implement this solution includes the following (7 working days = 3 weeks real-time):
+The breakdown of changes needed to implement this solution includes the following:
 
-1. 0.5d: make a subscript_keys() iterator like subscripts() -- this may be superseded by standard Lua pairs() below
-2. 0.25d: make key() accept numeric subscripts => strings like ydb does (integer only as floats will cause problems with rounding)
-3. 0.25d: make key accept dot notation key.subkey1.subkey2
-4. 0.5d: allow assignment to key.subkey
-5. 0.5d: make key() and key.subkey return key or value if no subkey -- open to discuss
-6. 0.25d: make key[subscript] return value (rather than a sub-key node that key() returns)
-7. 0.5d: make key() and [] take a subscript list, not just a single value. Efficiency demands a matching update to the low-level yottadb.get() to accept two subarrays (rather than a single concatenated one).
-8. 0.5d: make key[""] (and key[] if possible in Lua) return key.value for syntax consistency
-9. 1d: make pairs() and ipairs() work as expected, and any other metamethods required to make it table-like
+1. make a subscript_keys() iterator like subscripts() -- this may be superseded by standard Lua pairs() below
+2. make key() accept numeric subscripts => strings like ydb does (integer only as floats will cause problems with rounding)
+3. make key accept dot notation key.subkey1.subkey2
+4. allow assignment to key.subkey
+5. make key() and key.subkey return key or value if no subkey -- open to discuss
+6. make key[subscript] return value (rather than a sub-key node that key() returns)
+7. make key() and [] take a subscript list, not just a single value. Efficiency demands a matching update to the low-level yottadb.get() to accept two subarrays (rather than a single concatenated one).
+8. make key[""] (and key[] if possible in Lua) return key.value for syntax consistency
+9. make pairs() and ipairs() work as expected, and any other metamethods required to make it table-like
 10. Do not define # operator unless there is a ydb-way to make it efficient.
-11. 1d: populate a ydb database global using Lua table constructors: oaktree:set( {shadow=5, angle=30} )
-12. 2d: Improve efficiency of lua-yottadb keys by caching them in the form of ydb locals so that the entire subscript array does not need to be looked up every access as is currently the case.
+11. populate a ydb database global using Lua table constructors: oaktree:set( {shadow=5, angle=30} )
+12. Improve efficiency of lua-yottadb keys by caching them in the form of ydb locals so that the entire subscript array does not need to be looked up every access as is currently the case.
 
