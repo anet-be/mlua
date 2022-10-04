@@ -71,7 +71,7 @@ def benchmark(mroutine, *args, ignore_user_time=False, repetitions=int(os.getenv
           'user_time' is the amount of user-only cpu time taken for just the inner loop,
             which the function must print on the last time (measured using MLua after M init
             is complete -- i.e. more accurate than real_time)
-          The real time is necessary to compare because goSHA includes lots of
+          The real time is necessary to compare because shellSHA includes lots of
             system_time latency -- which the user_time doesn't capture
         Note: I have tinkered with using minimum instead of average, but average is more repeatable
     """
@@ -118,7 +118,7 @@ Sizes = [10, 1000, 1_000_000]
 Routines = OrderedDict(
     # dicts of:  hash_size:iterations
     # set so that each test takes a couple of seconds -- enough so load time doesn't swamp result
-    goSHA       = {10:200, 1000:200, 1_000_000:1},
+    shellSHA    = {10:200, 1000:200, 1_000_000:1},
     pureluaSHA = {10:10_000, 1000:2000, 1_000_000:2},
     luaCLibSHA = {10:200_000, 1000:100_000, 1_000_000:100},
     cmumpsSHA = {10:100_000, 1000:100_000, 1_000_000:100},
@@ -131,7 +131,7 @@ Routines = OrderedDict(
 
 # Various SHA512 results expected -- to check whether the test is running correctly
 class Expected_results:
-    goSHA = pureluaSHA = luaCLibSHA = cmumpsSHA = {
+    shellSHA = pureluaSHA = luaCLibSHA = cmumpsSHA = {
         10: '8772d22407ac282809a75706f91fab898adea0235f1d304d85c1c48650c283413e533eba63880c51be67e35dfc3433ddbe78e73d459511aaf29251a64a803884',
         1000: '7319dbae7e935f940b140f8b9d8e4d5e2509d634fb67041d8828833dcf857cfecda45282b54c0a77e2875185381d95791594dbf1a0f3db5cae71d95617287c18',
         1_000_000: '7a0712c75269ad5fbf829e04f116701899bcbefc5f07e4610fbaddf493ee2b917f84f1f0107f0ee95b420efc3c4cd6b687ee944a52351fc0c52eba260b11bed6',
@@ -146,7 +146,7 @@ def main():
     init_time = calc_init_time()    # calc M initialization time to compensate for
     # Only run cmumps if it was able to be installed
     if not os.path.exists('cstrlib.so'):  Routines.pop('cmumpsSHA'); Routines.pop('cmumpsStripChars'); print(f"Skipping uninstalled cmumpsSHA. To install, run: make")
-    if not os.path.exists('brocr'):  Routines.pop('goSHA'); print(f"Skipping uninstalled goSHA. To install, run: make")
+    if not os.path.exists('brocr'):  Routines.pop('shellSHA'); print(f"Skipping uninstalled shellSHA. To install, run: make")
     if not detect_lua_module('hmac'): Routines.pop('luaCLibSHA'); print(f"Skipping uninstalled luaCLibSHA. To install, run: luarocks install hmac")
 
     print(f"Running {len(Sizes)*len(Routines)} tests ...")

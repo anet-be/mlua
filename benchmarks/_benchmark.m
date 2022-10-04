@@ -147,7 +147,7 @@ mStripChars(iterations)
 
 ; ~~~ SHA benchmarks
 
-goSHA(iterations)
+shellSHA(iterations)
  new elapsed,i,RAinput,RAret
  do lua(">start")
  for i=1:1:iterations do
@@ -188,7 +188,7 @@ luaCLibSHA(iterations)
  quit elapsed
 
 
-;%Pipe function to spawn a process from M -- used for goSHA
+;%Pipe function to spawn a process from M -- used for shellSHA
 ;Copy catch macro here as documentation of parameters for %Pipe below
 ;macro catch($ret, $cmd, $input=0, $eol=«$c(13,10)», $debug=0):
 ;    $synopsis: launch an external process, and capture the output
