@@ -123,9 +123,9 @@ Here is the list of supplied functions, [optional parameters in square brackets]
 - mlua.open([.output])
 - mlua.close(luaState)
 
-`mlua.lua()` accepts a string of Lua code which it compiles and runs as a Lua 'chunk'. Note that Lua chunks are actually functions, so values may be returned and optional function parameters passed (param1, ...).
+**`mlua.lua()`** accepts a string of Lua code which it compiles and runs as a Lua 'chunk'. Note that Lua chunks are actually functions, so values may be returned and optional function parameters passed (param1, ...).
 
-Be aware that all parameters are strings and are not automatically converted to Lua numbers. Parameters are currently limited to 8, but this may easily be increased in mlua.xc).
+Be aware that all parameters are strings and are not automatically converted to Lua numbers. Parameters are currently limited to 8, but this may easily be increased in mlua.xc.
 
 On success, `mlua.lua()` fills .output (if given) with the return value of the code chunk. If the return value is not a string, it is encoded as follows:
 
@@ -135,13 +135,15 @@ On success, `mlua.lua()` fills .output (if given) with the return value of the c
 * string ==> a string which may contain NUL characters. It is truncated at 1048576 characters, the maximum YDB string length. This makes YDB allocate the whole 1MB for return data, but it's worth it since return strings this way is considerably faster than using ydb.set().
 * other types ==> "(typename)"
 
-On error, .output (if given) returns the error message; `open()` returns 0 and `lua()` returns nonzero on error. Note that the value return by `lua()` is currently equal to -1. This may be enhanced in the future to also return positive integers equal to ERRNO or YDB errors whenever YDB functions called by Lua are the cause of the error. However, for now, all errors return -1 and any YDB error code is encoded into the error message just like any other Lua error (Lua 5.4 does not yet support coded or named errors).
+If the luaState handle is missing or 0, mlua.lua() will run the code in the default global lua_State, automatically opening it the first time you call mlua.lua(). Alternatively, you can supply a luaState with a handle returned by mlua.open() (see below) to run code in a different lua_State.
 
-`mlua.close()` returns nothing, and cannot produce an error.
+On error, `mlua.lua()` returns nonzero and .output (if given) returns the error message. Note that the error value return is currently equal to -1. This may be enhanced in the future to also return positive integers equal to ERRNO or YDB errors whenever YDB functions called by Lua are the cause of the error. However, for now, all errors return -1 and any YDB error code is encoded into the error message just like any other Lua error (Lua 5.4 does not yet support coded or named errors).
 
-If the luaState handle is missing or 0, mlua.lua() will run the code in the default global lua_State, automatically opening it the first time you call mlua.lua(). Alternatively, you can supply a luaState with a handle returned by mlua.open() to run code in a different lua_State.
+**`mlua.open()`** creates a new 'lua_State' which contains a new Lua context, stack, and global variables, completely independent from other lua_States (see the Lua Reference Manual on the [Application Programmer Interface](https://www.lua.org/manual/5.4/manual.html#4)). `mlua.open()` returns a luaState handle which can be passed to mlua.lua(). On error, it returns zero and .output (if given) returns the error message.
 
-If you are finished using a lua_State, you may mlua.close(luaState) to free up any memory its code has allocated. This will also call any garbage-collection meta-methods you have introduced.
+**`mlua.close()`** can be called if you have finished using the lua_State, in order to free up any memory that a Lua_State has allocated, first calling any garbage-collection meta-methods you have introduced in Lua. It returns nothing, and cannot produce an error.
+
+
 
 ### Signals / Interrupts
 
