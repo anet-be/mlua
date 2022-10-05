@@ -45,7 +45,7 @@ YDB>
 For the sake of speed, it is also possible to pre-compile a function. If the string starts with '>', it is taken as the name of a global function to invoke, rather than a string to compile:
 
 ```lua
-YDB>do &mlua.lua("function add(a,b) return a+b end",.out)
+YDB>do &mlua.lua("function add(a,b) return a+b end")
 YDB>do &mlua.lua(">add",.out,,3,4) w out
 7
 ```
@@ -61,7 +61,7 @@ YDB>set ^oaks(1,"shadow")=10,^("angle")=30
 YDB>set ^oaks(2,"shadow")=13,^("angle")=30
 YDB>set ^oaks(3,"shadow")=15,^("angle")=45
 
-YDB>do &mlua.lua("print() ydb.dump('^oaks')") ;see definition of ydb.dump() below
+YDB>do &mlua.lua("print() ydb.dump('^oaks')",.err) w err  ;NOTE: you will need to define ydb.dump() -- see the MLUA_INIT heading below
 ^oaks("1","angle")="30"
 ^oaks("1","shadow")="10"
 ^oaks("2","angle")="30"
@@ -69,8 +69,8 @@ YDB>do &mlua.lua("print() ydb.dump('^oaks')") ;see definition of ydb.dump() belo
 ^oaks("3","angle")="45"
 ^oaks("3","shadow")="15"
 
-YDB>do &mlua.lua("dofile 'tree_height.lua'")  ;see file contents below
-YDB>do &mlua.lua("print() show_oaks( ydb.key('^oaks') )")
+YDB>do &mlua.lua("dofile 'tree_height.lua'",.err) w err  ;see file contents below
+YDB>do &mlua.lua("print() show_oaks( ydb.key('^oaks') )",.err) w err
 Oak 1 is 5.8m high
 Oak 2 is 7.5m high
 Oak 3 is 15.0m high
