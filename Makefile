@@ -13,13 +13,16 @@ LUA_VERSION:=$(shell $(LUA) -e 'print(string.match(_VERSION, " ([0-9]+[.][0-9]+)
 # location to install mlua module to: .so and .lua files, respectively
 LUA_LIB_INSTALL=/usr/local/lib/lua/$(LUA_VERSION)
 LUA_MOD_INSTALL=/usr/local/share/lua/$(LUA_VERSION)
-
 # Select which version tag of lua-yottadb to fetch
 LUA_YOTTADB_VERSION=master
 LUA_YOTTADB_SOURCE=https://github.com/berwynhoyt/lua-yottadb.git
+# Locate YDB install
+YDB_DIST:=$(shell pkg-config --variable=prefix yottadb)
+YDB_INSTALL:=$(YDB_DIST)/plugin
+ifeq ($(YDB_DIST),)
+ $(error please install yottadb or supply the path to your yottadb install with 'make YDB_INSTALL=/path/to/ydb')
+endif
 
-YDB_DIST = $(shell pkg-config --variable=prefix yottadb)
-YDB_INSTALL = $(YDB_DIST)/plugin
 
 
 # ~~~  Internal variables
@@ -130,14 +133,14 @@ allvars:
 clean:
 	rm -f *.o *.so try
 	rm -rf tests
-	$(MAKE) -C benchmarks clean
+	rm -rf deploy
+	$(MAKE) -C benchmarks clean  --no-print-directory
 # clean everything we've built
 cleanall: clean clean-luas clean-lua-yottadb
-	$(MAKE) -C benchmarks clean
 # clean & wipe build directory, including external downloads -- as if we'd only just now checked out the mlua source for the first time
 refresh: clean
 	rm -rf build
-	$(MAKE) -C benchmarks refresh
+	$(MAKE) -C benchmarks refresh  --no-print-directory
 
 
 # ~~~ Test
