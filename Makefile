@@ -155,16 +155,25 @@ test-lua-only:
 
 # ~~~ Install
 
+YDB_DEPLOYMENTS=mlua.so mlua.xc
+LUA_LIB_DEPLOYMENTS=yottadb.lua
+LUA_MOD_DEPLOYMENTS=_yottadb.so
 install: build
 	@test "`whoami`" = root || ( echo "You must run 'make install' as root" && false )
 	@echo lua-$(LUA_BUILD_VERSION) | grep -q "\-$(LUA_VERSION)" || ( \
 		echo "Cannot install MLua (which is built against lua-$(LUA_BUILD_VERSION)) into the target Lua (which is version $(LUA_VERSION))." && \
-		echo "Either change your Lua install target in the Makefile or install the version of Lua that you have built against, using 'make install-lua'." && \
+		echo "Either build with a different Lua version using 'make LUA=/path/to/lua'" && \
+		echo "or install to the system the same version of Lua that you have built using 'make install-lua'." && \
+		echo "Alternatively, you can install to a local directory 'deploy' with 'make install-local'" && \
 		false )
-	install -D mlua.so mlua.xc -t $(YDB_INSTALL)
-	install -D _yottadb.so -t $(LUA_LIB_INSTALL)
-	install -D yottadb.lua -t $(LUA_MOD_INSTALL)
-
+	install -m644 -D $(YDB_DEPLOYMENTS) -t $(YDB_INSTALL)
+	install -m644 -D $(LUA_LIB_DEPLOYMENTS) -t $(LUA_MOD_INSTALL)
+	install -m644 -D $(LUA_MOD_DEPLOYMENTS) -t $(LUA_LIB_INSTALL)
+install-local: build
+	mkdir -p deploy/ydb deploy/lua-lib deploy/lua-mod
+	install -m644 -D $(YDB_DEPLOYMENTS) -t deploy/ydb
+	install -m644 -D $(LUA_LIB_DEPLOYMENTS) -t deploy/lua-lib
+	install -m644 -D $(LUA_MOD_DEPLOYMENTS) -t deploy/lua-mod
 install-lua: build-lua
 	@echo Installing Lua $(LUA_BUILD_VERSION) to your system
 	@test "`whoami`" = root || ( echo "You must run 'make install' as root" && false )

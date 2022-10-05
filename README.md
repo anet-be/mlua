@@ -170,7 +170,7 @@ MLua also uses [Lua](https://www.lua.org/) (copyright © 1994–2021 Lua.org, PU
 3. make
 4. sudo make install       # install MLua
 
-If you also want to install the Lua version you built here into your system, do:
+If you also want to install the Lua version you just built into your system, do:
 
 ```shell
 sudo make install-lua
@@ -185,6 +185,8 @@ sudo make install LUA_BUILD_VERSION=5.x.x YDB_DEST=<your_ydb_plugin_directory> L
 ```
 
 MLua is implemented as a shared library mlua.so which also embeds Lua and the Lua library. There is no need to install Lua separately.
+
+Instead of installing to the system, you can also install files into a local folder ready for deployment using `make install local`.
 
 ### Explanation
 

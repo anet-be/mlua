@@ -5,6 +5,7 @@ t2.m
 
 build/*
 tests/*
+deploy/*
 *.o
 *.so
 *.bak
