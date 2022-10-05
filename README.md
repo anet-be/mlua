@@ -18,7 +18,7 @@ Now let's access a ydb local. At the first print statement we'll intentionally c
 YDB>do &mlua.lua("ydb = require 'yottadb'")
 YDB>set hello=$C(10)_"Hello World!"
 
-YDB>write $&mlua.lua("print hello",.output)  ; print requires parentheses
+YDB>write $&mlua.lua("print hello",.output)  ;print requires parentheses
 -1
 YDB>write output
 Lua: [string "mlua(code)"]:1: syntax error near 'hello'
@@ -69,7 +69,7 @@ YDB>do &mlua.lua("print() ydb.dump('^oaks')") ;see definition of ydb.dump() belo
 ^oaks("3","angle")="45"
 ^oaks("3","shadow")="15"
 
-YDB>do &mlua.lua("dofile 'tree_height.lua'")  ; see file contents below
+YDB>do &mlua.lua("dofile 'tree_height.lua'")  ;see file contents below
 YDB>do &mlua.lua("print() show_oaks( ydb.key('^oaks') )")
 Oak 1 is 5.8m high
 Oak 2 is 7.5m high
