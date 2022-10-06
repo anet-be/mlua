@@ -65,4 +65,5 @@ The breakdown of changes needed to implement this solution includes the followin
 10. define Lua `#` operator (which counts only sequential numeric keys) if there is a ydb-way to make it efficient. The main benefit would be to provide compatibility with Lua functions that operate on tables. It's use does not match a typical M way of structuring arrays.
 11. populate a ydb database global using Lua table constructors: `oaktree:set( {shadow=5, angle=30} )`
 12. improve efficiency of lua-yottadb keys by caching them in the form of ydb locals so that the entire subscript array does not need to be looked up every access as is currently the case.
+13. Make ydb.get('unknown_variable') return error instead of nil; something akin to M's: %YDB-E-GVUNDEF, Global variable undefined: ^unknown_variable
 
