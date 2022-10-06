@@ -190,8 +190,10 @@ $(shell mkdir -p build)			# So I don't need to do it in every target
 #Prevent leaving previous targets lying around and thinking they're up to date if you don't notice a make error
 .DELETE_ON_ERROR:
 
-.PHONY: fetch fetch-lua-yottadb fetch-lua fetch-lua-% fetch-readline
-.PHONY: build build-lua-yottadb build-lua build-lua-% build-mlua
+#Note: do not list build-lua and fetch-lua as .PHONY: this allows them to be used as prerequisites of real targets
+# (build-lua, at least, needs to be a prerequisite of anything that uses lua header files)
+.PHONY: fetch fetch-lua-yottadb fetch-lua-%
+.PHONY: build build-lua-yottadb build-lua-% build-mlua
 .PHONY: benchmarks test-lua-only
 .PHONY: install install-lua
 .PHONY: all test vars
