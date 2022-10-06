@@ -118,7 +118,7 @@ void mlua_close(int argc, gtm_long_t luaState_handle) {
 // on error, return 1 with the error message string on the top of the Lua stack
 static int push_code(lua_State *L, const gtm_string_t *code_string) {
   // Compile the code and push it
-  if (code_string->address[0] != '>')
+  if (!code_string->length || code_string->address[0] != '>')
     return luaL_loadbuffer(L, code_string->address, code_string->length, "mlua(code)");
 
   // Otherwise look up function name in global table and push it instead
@@ -129,7 +129,7 @@ static int push_code(lua_State *L, const gtm_string_t *code_string) {
   if (type != LUA_TFUNCTION) {
     lua_pop(L, 1);  // pop bad function from the stack
     // allocate space for null-terminated version of code_string function name
-    char *name = malloc(code_string->length-1+1);   // size for no '>' but add '\0'
+    char *name = malloc(code_string->length+1-1);   // new size to include '\0' but not '>'
     if (name) {
       memcpy(name, code_string->address+1, code_string->length-1);
       name[code_string->length-1] = '\0'; // null-terminate
@@ -145,7 +145,7 @@ static int push_code(lua_State *L, const gtm_string_t *code_string) {
 }
 
 // mlua_lua() helper to format result output data type for more natural interpretation by M
-// assume result is on top of the Lua stack & pop it off
+// the data type is passed in on the top of the Lua stack and is popped off before return
 static void format_result(lua_State *L, gtm_string_t *output, int output_size) {
   if (!output) goto done;
   size_t len;
