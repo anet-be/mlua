@@ -2,6 +2,7 @@ tree_height.lua
 t.lua
 t.m
 t2.m
+lua-yottadb
 
 build/*
 tests/*
