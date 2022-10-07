@@ -104,7 +104,7 @@ You probably found that `ydb.dump()` doesn't work for you. That's because I chea
 My `startup.lua` file defines ydb.dump() as follows:
 
 ```lua
-local ydb = require 'yottadb'
+ydb = require 'yottadb'
 function ydb.dump(glvn, ...)
   for node in ydb.nodes(tostring(glvn), ...) do
     print(string.format('%s("%s")=%q',
@@ -155,7 +155,7 @@ The only systems functions that the Lua standard library calls which can return 
 
 Lua co-routines, are perfectly safe to use with ydb, since they are cooperative rather than preemptive.
 
-However, multi-threaded applications must invoke ydb using [special C API functions](https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#threads). MLua uses lua-yottadb which does not use these special functions, and so MLua must not be used in multi-threaded applications unless the application designer ensures that only one of the threads invokes the database. If there is keen demand, it would be relatively easy to upgrade lua-yottadb to use the thread-safe function calls, making MLua thread-safe. It would still be necessary, however to have only one lua_State per thread, or ensure in some other way that a thread does not re-enter a lua_State that another thread is currently running.
+However, multi-threaded applications must access ydb using [special C API functions](https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#threads). MLua uses lua-yottadb which does not use these special functions, and so MLua must not be used in multi-threaded applications unless the application designer ensures that only one of the threads accesses the database. If there is keen demand, it would not be too much difficulty to upgrade lua-yottadb to use the thread-safe function calls, making MLua thread-safe. (Lua still requires, though, that each thread running Lua does so in a separate lua_State).
 
 ## Versions & Acknowledgements
 
@@ -166,6 +166,9 @@ MLua's primary author is Berwyn Hoyt. MLua incorporates [lua-yottadb](https://gi
 MLua also uses [Lua](https://www.lua.org/) (copyright © 1994–2021 Lua.org, PUC-Rio) and [YottaDB](https://yottadb.com/) (copyright © 2017-2019, YottaDB LLC). Both are available under open source licenses.
 
 ## Installation
+
+Prerequisites: linux, gcc, yottadb
+To run the benchmarks you also need: luarocks and python
 
 1. Install YottaDB per the [Quick Start](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#quick-start) guide instructions or from [source](https://gitlab.com/YottaDB/DB/YDB).
 2. git clone `<mlua repository>` mlua && cd mlua
@@ -225,3 +228,26 @@ make benchmarks
 ```
 
 Some benchmarks are installed by the Makefile. Others will require manual installation of certain Lua modules: for example `luarocks install hmac` to get a SHA library for lua. But running `make benchmarks` will note these requirements for you. There is further comment on these benchmarks in the [benchmarks/README.md](benchmarks/README.md).
+
+# Troubleshooting
+
+### Trouble building MLua
+
+1. Why can't it find <libyottadb.h>?
+
+   Make sure you have the prerequisites installed, including the yottadb package.
+
+### Trouble running MLua
+
+1. Why do I get error: `ydb_xc_mlua/GTMXC_mlua not set`?
+
+   This is an environment variable that is supposed to be set by `ydb_env_set` which is a script that is normally run when you type `ydb`. On my machine, `ydb` runs a bash script at /usr/local/lib/yottadb/r134/ydb which, in turn, sources `ydb_env_set`. That script is responsible to set the ydb_xc_mlua environment variables required for every ydb plugin in the ydb plugin directory. On my machine, for example, it sets: `ydb_xc_mlua=/usr/local/lib/yottadb/r134/plugin/mlua.xc`
+
+   The fact that this is not being set for you may mean you're not running ydb the normal way.
+
+2. Why does running the example Lua code `ydb.dump('^oaks')` do nothing?
+
+   Possibly because you have not defined the dump function, or have not done `ydb=require'yottadb'`. Check the documentation heading [MLUA_INIT and ydb.dump()](#mluainit-and-ydbdump).
+
+   To see error messages, make sure you print the output variable like so: `do &mlua.lua("your_code",.out) w out`
+
