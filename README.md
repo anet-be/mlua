@@ -159,7 +159,7 @@ However, multi-threaded applications must access ydb using [special C API functi
 
 ## Versions & Acknowledgements
 
-MLua requires Lua version 5.2 or higher and ydb 1.34 or higher. Older Lua versions may work but are untested and would have to be built manually since the MLua Makefile does not know how to build them.
+MLua requires ydb 1.34 or higher. For Lua version compatibility see [README-compatibility](README-compatibility.md).
 
 MLua's primary author is Berwyn Hoyt. MLua incorporates [lua-yottadb](https://github.com/orbitalquark/lua-yottadb/) by [Mitchell](https://github.com/orbitalquark), which is based heavily on [YDBPython](https://gitlab.com/YottaDB/Lang/YDBPython). Both were sponsored by, and are copyright © 2022, [University of Antwerp Library](https://www.uantwerpen.be/en/library/). They are provided under the same license as YottaDB: the [GNU Affero General Public License version 3](https://www.gnu.org/licenses/agpl-3.0.txt).
 
@@ -243,7 +243,7 @@ Some benchmarks are installed by the Makefile. Others will require manual instal
 
    This is an environment variable that is supposed to be set by `ydb_env_set` which is a script that is normally run when you type `ydb`. On my machine, `ydb` runs a bash script at /usr/local/lib/yottadb/r134/ydb which, in turn, sources `ydb_env_set`. That script is responsible to set the ydb_xc_mlua environment variables required for every ydb plugin in the ydb plugin directory. On my machine, for example, it sets: `ydb_xc_mlua=/usr/local/lib/yottadb/r134/plugin/mlua.xc`
 
-   The fact that this is not being set for you may mean you're not running ydb the normal way.
+   The fact that this is not being set for you may mean you're not running `ydb` the normal way. Perhaps you are running `yottadb` instead, without the `ydb` wrapper script. In that case you will need to create the `ydb_xc_mlua` environment variable yourself, to point to your mlua.xc file.
 
 2. Why does running the example Lua code `ydb.dump('^oaks')` do nothing?
 
