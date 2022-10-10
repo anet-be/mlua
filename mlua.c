@@ -30,7 +30,7 @@ int outputf(gtm_string_t *output, int output_size, const char *fmt, ...) {
   output->length = vsnprintf(output->address, output_size, fmt, argp);
   va_end(argp);
   if (output->length > output_size) {  // snprintf truncates but still returns full output size
-    output->length = output_size-1;   // drop final null
+    output->length = output_size-1;   // drop final NUL
     return -1;
   }
   return 0;
@@ -128,11 +128,11 @@ static int push_code(lua_State *L, const gtm_string_t *code_string) {
   lua_remove(L, -2); // drop globals table (second-to-top place on the stack)
   if (type != LUA_TFUNCTION) {
     lua_pop(L, 1);  // pop bad function from the stack
-    // allocate space for null-terminated version of code_string function name
+    // allocate space for NUL-terminated version of code_string function name
     char *name = malloc(code_string->length+1-1);   // new size to include '\0' but not '>'
     if (name) {
       memcpy(name, code_string->address+1, code_string->length-1);
-      name[code_string->length-1] = '\0'; // null-terminate
+      name[code_string->length-1] = '\0'; // NUL-terminate
     }
     if (type == LUA_TNIL)
       lua_pushfstring(L, "could not find global function '%s'", name);
@@ -163,7 +163,7 @@ static void format_result(lua_State *L, gtm_string_t *output, int output_size) {
       break;
     case LUA_TNUMBER:
     case LUA_TSTRING:
-      // Return output string, ensuring that strings containing nulls are correctly returned in full
+      // Return output string, ensuring that strings containing NULs are correctly returned in full
       s = lua_tolstring(L, -1, &len);
       if (len > output_size)
         len = output_size;
