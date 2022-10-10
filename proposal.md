@@ -61,9 +61,7 @@ The breakdown of changes needed to implement this solution includes the followin
    - consider making `ipairs()`, as in Lua, to allow iteration of a sequence with order preservation.
    - but for `ipairs()` to work it will need to iterate natural number keys, as in Lua, even though all keys are strings in YDB -- this would be a variation from Lua tables which only iterates keys of type `number`. However, since we auto-convert number keys to strings (point 2 above), this will seem normal to the Lua user.
    - care needed to make it backward compatible with Lua 5.2 which works differently with its `__ipairs` metamethod that 5.3 lost.
-
 10. define Lua `#` operator (which counts only sequential numeric keys) if there is a ydb-way to make it efficient. The main benefit would be to provide compatibility with Lua functions that operate on tables. It's use does not match a typical M way of structuring arrays.
 11. populate a ydb database global using Lua table constructors: `oaktree:set( {shadow=5, angle=30} )`
 12. improve efficiency of lua-yottadb keys by caching them in the form of ydb locals so that the entire subscript array does not need to be looked up every access as is currently the case.
-13. Make ydb.get('unknown_variable') return error instead of nil; something akin to M's: %YDB-E-GVUNDEF, Global variable undefined: ^unknown_variable
 
