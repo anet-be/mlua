@@ -105,8 +105,9 @@ build-lua-yottadb: _yottadb.so yottadb.lua
 _yottadb.so: build-lua		# Depends on build-lua because CFLAGS includes .h files from our own build of lua
 	@echo Building $@
 	$(CC) build/lua-yottadb/_yottadb.c  -o $@  -shared  $(CFLAGS) $(LDFLAGS)  -Wno-return-type -Wno-unused-but-set-variable -Wno-discarded-qualifiers
-yottadb.lua: build/lua-yottadb/_yottadb.c
+yottadb.lua: build/lua-yottadb/yottadb.lua
 	cp build/lua-yottadb/yottadb.lua $@
+.PRECIOUS: build/lua-yottadb/yottadb.lua
 build/lua-yottadb/_yottadb.c:
 	@echo Fetching $(dir $@)
 	git clone --branch "$(LUA_YOTTADB_VERSION)" "$(LUA_YOTTADB_SOURCE)" $(dir $@)

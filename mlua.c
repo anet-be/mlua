@@ -13,6 +13,17 @@
 
 #include "mlua.h"
 
+// Support Lua older than 5.3
+#if LUA_VERSION_NUM < 503
+  static int _lua_rawget(lua_State *L, int idx) {
+    lua_rawget(L, idx);
+    return lua_type(L, -1);
+  }
+  #undef lua_rawgeti
+  #define lua_rawget(L, idx) _lua_rawget((L), (idx))
+#endif
+
+
 // For one Lua instance per process, this works, since each process gets new shared library globals.
 // But to make MUMPS support multiple simultaneous Lua instances,
 // we'd need to return this handle to the user instead of making it a global.
