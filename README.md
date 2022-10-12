@@ -159,7 +159,7 @@ However, multi-threaded applications must access ydb using [special C API functi
 
 ## Versions & Acknowledgements
 
-MLua requires ydb 1.34 or higher. For Lua version compatibility see [README-compatibility](README-compatibility.md).
+MLua requires ydb 1.34 or higher and Lua 5.1 or higher.
 
 MLua's primary author is Berwyn Hoyt. MLua incorporates [lua-yottadb](https://github.com/orbitalquark/lua-yottadb/) by [Mitchell](https://github.com/orbitalquark), which is based heavily on [YDBPython](https://gitlab.com/YottaDB/Lang/YDBPython). Both were sponsored by, and are copyright © 2022, [University of Antwerp Library](https://www.uantwerpen.be/en/library/). They are provided under the same license as YottaDB: the [GNU Affero General Public License version 3](https://www.gnu.org/licenses/agpl-3.0.txt).
 

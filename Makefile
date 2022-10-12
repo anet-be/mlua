@@ -64,6 +64,8 @@ mlua.so: mlua.o build-lua
 
 # Set LUA_BUILD_TARGET to 'linux' or if LUA_BUILD_VERSION >= 5.4.0, build target is 'linux-readline'
 LUA_BUILD_TARGET:=linux$(shell echo -e " 5.4.0 \n $(LUA_BUILD_VERSION) " | sort -CV && echo -readline)
+# Switch on -fPIC in the only way that works with Lua Makefiles 5.1 through 5.4
+LUA_CC:=$(CC) -fPIC
 
 fetch-lua: fetch-lua-$(LUA_BUILD_VERSION) fetch-readline
 build-lua: build-lua-$(LUA_BUILD_VERSION)
@@ -73,7 +75,8 @@ build/lua-%/install/lib/liblua.a: build/lua-%/Makefile
 	@echo Building $@
 	@# tweak the standard Lua build with flags to make sure we can make a shared library (-fPIC)
 	@# readline demanded only by lua <5.4 but override to included in all versions -- handy if we install this lua to the system
-	$(MAKE) -C build/lua-$*  $(LUA_BUILD_TARGET)  MYCFLAGS="-fPIC"  local
+	$(MAKE) -C build/lua-$*  $(LUA_BUILD_TARGET)  CC="$(LUA_CC)"
+	$(MAKE) -C build/lua-$*  install  INSTALL_TOP=../install
 	@echo
 build/lua-%/Makefile:
 	@echo Fetching $(dir $@)

@@ -11,18 +11,10 @@
 #include "lauxlib.h"
 #include "lualib.h"
 
+// Enable build against Lua older than 5.3
+#include "compat-5.3.h"
+
 #include "mlua.h"
-
-// Support Lua older than 5.3
-#if LUA_VERSION_NUM < 503
-  static int _lua_rawget(lua_State *L, int idx) {
-    lua_rawget(L, idx);
-    return lua_type(L, -1);
-  }
-  #undef lua_rawgeti
-  #define lua_rawget(L, idx) _lua_rawget((L), (idx))
-#endif
-
 
 // For one Lua instance per process, this works, since each process gets new shared library globals.
 // But to make MUMPS support multiple simultaneous Lua instances,
@@ -133,7 +125,7 @@ static int push_code(lua_State *L, const gtm_string_t *code_string) {
     return luaL_loadbuffer(L, code_string->address, code_string->length, "mlua(code)");
 
   // Otherwise look up function name in global table and push it instead
-  lua_rawgeti(L, LUA_REGISTRYINDEX, LUA_RIDX_GLOBALS); // push globals table
+  lua_pushglobaltable(L);
   lua_pushlstring(L, code_string->address+1, code_string->length-1);
   int type = lua_rawget(L, -2); // look up -2[-1] = globals[func_name]
   lua_remove(L, -2); // drop globals table (second-to-top place on the stack)
