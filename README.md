@@ -99,7 +99,7 @@ Further documentation of Lua's API for ydb is documented in ydb's [Multi-Languag
 
 ### MLUA_INIT and ydb.dump()
 
-You probably found that `ydb.dump()` doesn't work for you. That's because I cheated: I set up MLua to define that function on initialisation. This is a handy feature. Simply set environment variable `MLUA_INIT=@startup.lua` and it will run whenever &mlua creates a new lua_State -- it works just like Lua's standard LUA_INIT: set the variable to contain Lua code or a filepath starting with @.
+You probably found that `ydb.dump()` doesn't work for you. That's because I cheated: I set up MLua to define that function on initialisation. This is a handy feature. Simply set your environment variable `MLUA_INIT` to point to your the startup.lua file below (e.g. with `export MLUA_INIT=@startup.lua`) and `startup.lua` will run whenever &mlua creates a new lua_State -- it works just like Lua's standard LUA_INIT: set the variable to contain Lua code or a filepath starting with @.
 
 My `startup.lua` file defines ydb.dump() as follows:
 
@@ -113,7 +113,7 @@ function ydb.dump(glvn, ...)
 end
 ```
 
-You can add your own handy code at startup. For example, to avoid having to explicitly require the ydb library every time you run ydb+mlua, set `MLUA_INIT="ydb = require 'yottadb'"`
+You can add your own handy code at startup. For example, to avoid having to explicitly require the ydb library every time you run ydb and mlua, set `export MLUA_INIT="ydb = require 'yottadb'"` (though you won't need to if you set ydb in your startup.lua file as above).
 
 ## API
 
@@ -186,12 +186,12 @@ You may also need to double-check that /usr/local/bin is in your path and/or run
 If you need to use a different Lua version or install into a non-standard YDB directory, change the last line to something like:
 
 ```shell
-sudo make install LUA_BUILD_VERSION=5.x.x YDB_DEST=<your_ydb_plugin_directory> LUA_LIB_INSTALL=/usr/local/lib/lua/x.x LUA_MOD_INSTALL=/usr/local/share/lua/x.x
+sudo make install LUA_BUILD=5.x.x YDB_DEST=<your_ydb_plugin_directory> LUA_LIB_INSTALL=/usr/local/lib/lua/x.x LUA_MOD_INSTALL=/usr/local/share/lua/x.x
 ```
 
 MLua is implemented as a shared library mlua.so which also embeds Lua and the Lua library. There is no need to install Lua separately.
 
-Instead of installing to the system, you can also install files into a local folder ready for deployment using `make install local`.
+Instead of installing to the system, you can also install files into a local directory `deploy` with `make install local`.
 
 ### Explanation
 

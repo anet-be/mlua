@@ -5,11 +5,14 @@
 
 # Select which specific version of lua to download and build MLua against, eg: 5.4.4, 5.3.6, 5.2.4
 # MLua works with lua >=5.2; older versions have not been tested
-LUA_BUILD_VERSION:=5.4.4
+LUA_BUILD:=5.4.4
 
-# Select Lua binary and get its version
-LUA:=lua
-LUA_VERSION:=$(shell $(LUA) -e 'print(string.match(_VERSION, " ([0-9]+[.][0-9]+)"))')
+# Calculate just the Major.Minor and store in LUA_VERSION:
+# first replace dots with spaces
+tmp:=$(subst ., ,$(LUA_BUILD))
+# then pick 1st number second number and put a dot between
+LUA_VERSION:=$(word 1,$(tmp)).$(word 2,$(tmp))
+
 # location to install mlua module to: .so and .lua files, respectively
 LUA_LIB_INSTALL=/usr/local/lib/lua/$(LUA_VERSION)
 LUA_MOD_INSTALL=/usr/local/share/lua/$(LUA_VERSION)
@@ -27,21 +30,17 @@ endif
 
 # ~~~  Internal variables
 
-LIBLUA = build/lua-$(LUA_BUILD_VERSION)/install/lib/liblua.a
+LIBLUA = build/lua-$(LUA_BUILD)/install/lib/liblua.a
 YDB_FLAGS = $(shell pkg-config --cflags yottadb)
-LUA_FLAGS = -Ibuild/lua-$(LUA_BUILD_VERSION)/install/include -Wl,--library-path=build/lua-$(LUA_BUILD_VERSION)/install/lib -Wl,-l:liblua.a
+LUA_FLAGS = -Ibuild/lua-$(LUA_BUILD)/install/include -Wl,--library-path=build/lua-$(LUA_BUILD)/install/lib -Wl,-l:liblua.a
 LDFLAGS = -lm -ldl -lyottadb -L$(YDB_DIST)
 CFLAGS = -fPIC -std=c99 -pedantic -Wall -Wno-unknown-pragmas  $(YDB_FLAGS) $(LUA_FLAGS)
 CC = gcc
-# bash and GNU sort required for LUA_BUILD_VERSION comparison
+# bash and GNU sort required for LUA_BUILD comparison
 SHELL=bash
 $(if $(shell sort -V /dev/null 2>&1), $(error "GNU sort >= 7.0 required to get the -V option"))
 # Decide command whether to use apt-get or yum to fetch readline lib
 FETCH_LIBREADLINE = $(if $(shell which apt-get), sudo apt-get install libreadline-dev, sudo yum install readline-devel)
-# Check validity of generated LUA_VERSION
-ifeq ($(LUA_VERSION),)
- $(error LUA_VERSION string is empty: possibly could not generate it because Lua binary ($(LUA)) could not run?))
-endif
 
 
 # Core build targets
@@ -62,13 +61,13 @@ mlua.so: mlua.o build-lua
 
 # ~~~ Lua: fetch lua versions and build them
 
-# Set LUA_BUILD_TARGET to 'linux' or if LUA_BUILD_VERSION >= 5.4.0, build target is 'linux-readline'
-LUA_BUILD_TARGET:=linux$(shell echo -e " 5.4.0 \n $(LUA_BUILD_VERSION) " | sort -CV && echo -readline)
+# Set LUA_BUILD_TARGET to 'linux' or if LUA_BUILD >= 5.4.0, build target is 'linux-readline'
+LUA_BUILD_TARGET:=linux$(shell echo -e " 5.4.0 \n $(LUA_BUILD) " | sort -CV && echo -readline)
 # Switch on -fPIC in the only way that works with Lua Makefiles 5.1 through 5.4
 LUA_CC:=$(CC) -fPIC
 
-fetch-lua: fetch-lua-$(LUA_BUILD_VERSION) fetch-readline
-build-lua: build-lua-$(LUA_BUILD_VERSION)
+fetch-lua: fetch-lua-$(LUA_BUILD) fetch-readline
+build-lua: build-lua-$(LUA_BUILD)
 fetch-lua-%: build/lua-%/Makefile ;
 build-lua-%: build/lua-%/install/lib/liblua.a ;
 build/lua-%/install/lib/liblua.a: build/lua-%/Makefile
@@ -166,13 +165,7 @@ YDB_DEPLOYMENTS=mlua.so mlua.xc
 LUA_LIB_DEPLOYMENTS=yottadb.lua
 LUA_MOD_DEPLOYMENTS=_yottadb.so
 install: build
-	@test "`whoami`" = root || ( echo "You must run 'make install' as root" && false )
-	@echo lua-$(LUA_BUILD_VERSION) | grep -q "\-$(LUA_VERSION)" || ( \
-		echo "Cannot install MLua (which is built against lua-$(LUA_BUILD_VERSION)) into the target Lua (which is version $(LUA_VERSION))." && \
-		echo "Either build with a different Lua version using 'make LUA=/path/to/lua'" && \
-		echo "or install to the system the same version of Lua that you have built using 'make install-lua'." && \
-		echo "Alternatively, you can install to a local directory 'deploy' with 'make install-local'" && \
-		false )
+	@test "`whoami`" = root || ( echo "You must run 'make install' as root: try 'sudo make install'" && false )
 	install -m644 -D $(YDB_DEPLOYMENTS) -t $(YDB_INSTALL)
 	install -m644 -D $(LUA_LIB_DEPLOYMENTS) -t $(LUA_MOD_INSTALL)
 	install -m644 -D $(LUA_MOD_DEPLOYMENTS) -t $(LUA_LIB_INSTALL)
@@ -182,14 +175,20 @@ install-local: build
 	install -m644 -D $(LUA_LIB_DEPLOYMENTS) -t deploy/lua-lib
 	install -m644 -D $(LUA_MOD_DEPLOYMENTS) -t deploy/lua-mod
 install-lua: build-lua
-	@echo Installing Lua $(LUA_BUILD_VERSION) to your system
+	@echo Installing Lua $(LUA_BUILD) to your system
 	@test "`whoami`" = root || ( echo "You must run 'make install' as root" && false )
-	$(MAKE) -C build/lua-$(LUA_BUILD_VERSION)  install
-
+	$(MAKE) -C build/lua-$(LUA_BUILD)  install
+	mv /usr/local/bin/lua /usr/local/bin/lua$(LUA_VERSION)
+	mv /usr/local/bin/luac /usr/local/bin/luac$(LUA_VERSION)
+	@echo
+	@echo "*** Note ***: Lua is installed as /usr/local/bin/lua$(LUA_VERSION)."
+	@echo "If you want it as your main Lua, symlink it like this (assuming ~/bin is in your path):"
+	@echo "  sudo ln -s /usr/local/bin/lua$(LUA_VERSION) ~/bin/lua"
+	@echo
 
 $(shell mkdir -p build)			# So I don't need to do it in every target
 
-#Prevent deletion of targets -- and prevent rebuilding when phony target LUA_BUILD_VERSION is a dependency
+#Prevent deletion of targets
 .SECONDARY:
 #Prevent leaving previous targets lying around and thinking they're up to date if you don't notice a make error
 .DELETE_ON_ERROR:
