@@ -106,7 +106,7 @@ fetch-readline: /usr/include/readline/readline.h
 
 fetch-lua-yottadb: build/lua-yottadb/_yottadb.c
 build-lua-yottadb: _yottadb.so yottadb.lua
-_yottadb.so: .ARG~LUA_BUILD build-lua		# Depends on these because CFLAGS includes .h files from our own build of lua
+_yottadb.so: build/lua-yottadb/_yottadb.c .ARG~LUA_BUILD build-lua		# Depends on lua build because CFLAGS includes lua's .h files
 	@echo Building $@
 	$(CC) build/lua-yottadb/_yottadb.c  -o $@  -shared  $(CFLAGS) $(LDFLAGS)  -Wno-return-type -Wno-unused-but-set-variable -Wno-discarded-qualifiers
 yottadb.lua: build/lua-yottadb/yottadb.lua
