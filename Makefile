@@ -36,7 +36,7 @@ LUA_FLAGS = -Ibuild/lua-$(LUA_BUILD)/install/include -Wl,--library-path=build/lu
 LDFLAGS = -lm -ldl -lyottadb -L$(YDB_DIST)
 CFLAGS = -fPIC -std=c99 -pedantic -Wall -Wno-unknown-pragmas  $(YDB_FLAGS) $(LUA_FLAGS)
 CC = gcc
-# bash and GNU sort required for LUA_BUILD comparison
+# bash and GNU sort required for LUA_BUILD version comparison
 SHELL=bash
 $(if $(shell sort -V /dev/null 2>&1), $(error "GNU sort >= 7.0 required to get the -V option"))
 # Decide command whether to use apt-get or yum to fetch readline lib
@@ -49,13 +49,13 @@ fetch: fetch-lua fetch-lua-yottadb			# Download files for build; no internet req
 build: build-lua build-lua-yottadb build-mlua
 
 build-mlua: mlua.so
-mlua.o: mlua.c build-lua
+mlua.o: mlua.c .ARG~LUA_BUILD build-lua
 	$(CC) -c $<  -o $@ $(CFLAGS) $(LDFLAGS)
-mlua.so: mlua.o build-lua
+mlua.so: mlua.o
 	@# include entire liblua.a into mlua.so so we can call entire lua API
 	$(CC) $< -o $@  -shared  -Wl,--whole-archive  $(LIBLUA)  -Wl,--no-whole-archive
 
-%: %.c *.h mlua.so build-lua				# Just to help build my own temporary test.c files
+%: %.c *.h mlua.so .ARG~LUA_BUILD build-lua			# Just to help build my own temporary test.c files
 	$(CC) $< -o $@  $(CFLAGS) $(LDFLAGS)
 
 
@@ -104,7 +104,7 @@ fetch-readline: /usr/include/readline/readline.h
 
 fetch-lua-yottadb: build/lua-yottadb/_yottadb.c
 build-lua-yottadb: _yottadb.so yottadb.lua
-_yottadb.so: build-lua		# Depends on build-lua because CFLAGS includes .h files from our own build of lua
+_yottadb.so: .ARG~LUA_BUILD build-lua		# Depends on these because CFLAGS includes .h files from our own build of lua
 	@echo Building $@
 	$(CC) build/lua-yottadb/_yottadb.c  -o $@  -shared  $(CFLAGS) $(LDFLAGS)  -Wno-return-type -Wno-unused-but-set-variable -Wno-discarded-qualifiers
 yottadb.lua: build/lua-yottadb/yottadb.lua
@@ -117,6 +117,13 @@ build/lua-yottadb/_yottadb.c:
 
 clean-lua-yottadb:
 	rm -f _yottadb.so yottadb.lua
+
+
+# ~~~ Make any variable name % become like a dependency so that when it $(%) changes, targets are rebuilt
+# Used here to make .c files that depend on lua.h so they rebuild if $(LUA_BUILD) is changes
+.PHONY: phony
+.ARG~%: phony
+	@if [[ `cat .ARG~$* 2>&1` != '$($*)' ]]; then echo -n $($*) >.ARG~$*; fi
 
 
 # ~~~ Debug

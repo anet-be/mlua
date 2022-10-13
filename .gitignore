@@ -1,3 +1,4 @@
+.ARG~*
 tree_height.lua
 t.lua
 t.m
