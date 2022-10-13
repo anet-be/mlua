@@ -39,8 +39,10 @@ CC = gcc
 # bash and GNU sort required for LUA_BUILD version comparison
 SHELL=bash
 $(if $(shell sort -V /dev/null 2>&1), $(error "GNU sort >= 7.0 required to get the -V option"))
+# Define command to become root (sudo) only if we are not already root
+BECOME_ROOT:=$(shell whoami | grep -q root || echo sudo)
 # Decide command whether to use apt-get or yum to fetch readline lib
-FETCH_LIBREADLINE = $(if $(shell which apt-get), sudo apt-get install libreadline-dev, sudo yum install readline-devel)
+FETCH_LIBREADLINE = $(if $(shell which apt-get), $(BECOME_ROOT) apt-get install libreadline-dev, $(BECOME_ROOT) yum install readline-devel)
 
 
 # Core build targets
@@ -172,10 +174,11 @@ YDB_DEPLOYMENTS=mlua.so mlua.xc
 LUA_LIB_DEPLOYMENTS=yottadb.lua
 LUA_MOD_DEPLOYMENTS=_yottadb.so
 install: build
-	@test "`whoami`" = root || ( echo "You must run 'make install' as root: try 'sudo make install'" && false )
-	install -m644 -D $(YDB_DEPLOYMENTS) -t $(YDB_INSTALL)
-	install -m644 -D $(LUA_LIB_DEPLOYMENTS) -t $(LUA_MOD_INSTALL)
-	install -m644 -D $(LUA_MOD_DEPLOYMENTS) -t $(LUA_LIB_INSTALL)
+	@echo "Installing files to '$(YDB_INSTALL)', '$(LUA_LIB_INSTALL)', and '$(LUA_MOD_INSTALL)'"
+	@echo "If you prefer to install to a local (non-system) deployment folder, run 'make install-local'"
+	$(BECOME_ROOT) install -m644 -D $(YDB_DEPLOYMENTS) -t $(YDB_INSTALL)
+	$(BECOME_ROOT) install -m644 -D $(LUA_LIB_DEPLOYMENTS) -t $(LUA_LIB_INSTALL)
+	$(BECOME_ROOT) install -m644 -D $(LUA_MOD_DEPLOYMENTS) -t $(LUA_MOD_INSTALL)
 install-local: build
 	mkdir -p deploy/ydb deploy/lua-lib deploy/lua-mod
 	install -m644 -D $(YDB_DEPLOYMENTS) -t deploy/ydb
@@ -183,14 +186,13 @@ install-local: build
 	install -m644 -D $(LUA_MOD_DEPLOYMENTS) -t deploy/lua-mod
 install-lua: build-lua
 	@echo Installing Lua $(LUA_BUILD) to your system
-	@test "`whoami`" = root || ( echo "You must run 'make install' as root" && false )
-	$(MAKE) -C build/lua-$(LUA_BUILD)  install
-	mv /usr/local/bin/lua /usr/local/bin/lua$(LUA_VERSION)
-	mv /usr/local/bin/luac /usr/local/bin/luac$(LUA_VERSION)
+	$(BECOME_ROOT) $(MAKE) -C build/lua-$(LUA_BUILD)  install
+	$(BECOME_ROOT) mv /usr/local/bin/lua /usr/local/bin/lua$(LUA_VERSION)
+	$(BECOME_ROOT) mv /usr/local/bin/luac /usr/local/bin/luac$(LUA_VERSION)
 	@echo
-	@echo "*** Note ***: Lua is installed as /usr/local/bin/lua$(LUA_VERSION)."
+	@echo "*** Note ***: Lua is now installed as /usr/local/bin/lua$(LUA_VERSION)."
 	@echo "If you want it as your main Lua, symlink it like this (assuming ~/bin is in your path):"
-	@echo "  sudo ln -s /usr/local/bin/lua$(LUA_VERSION) ~/bin/lua"
+	@echo "  $(BECOME_ROOT) ln -s /usr/local/bin/lua$(LUA_VERSION) ~/bin/lua"
 	@echo
 
 $(shell mkdir -p build)			# So I don't need to do it in every target
