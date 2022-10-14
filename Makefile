@@ -171,8 +171,8 @@ test-lua-only:
 # ~~~ Install
 
 YDB_DEPLOYMENTS=mlua.so mlua.xc
-LUA_LIB_DEPLOYMENTS=yottadb.lua
-LUA_MOD_DEPLOYMENTS=_yottadb.so
+LUA_LIB_DEPLOYMENTS=_yottadb.so
+LUA_MOD_DEPLOYMENTS=yottadb.lua
 install: build
 	@echo "Installing files to '$(YDB_INSTALL)', '$(LUA_LIB_INSTALL)', and '$(LUA_MOD_INSTALL)'"
 	@echo "If you prefer to install to a local (non-system) deployment folder, run 'make install-local'"
