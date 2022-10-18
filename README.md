@@ -8,24 +8,25 @@ Invoking a Lua command is easy:
 
 ```lua
 $ ydb
-YDB>do &mlua.lua("print('\nHello World!')")
+YDB>u $p do &mlua.lua("print('Hello World!')")
 Hello world!
 ```
+
+(Note that `u $p` flushes YDB's stdout before calling Lua as YDB usually has pending output characters like '\n')
 
 Now let's access a ydb local. At the first print statement we'll intentionally create a Lua syntax error:
 
 ```lua
 YDB>do &mlua.lua("ydb = require 'yottadb'")
-YDB>set hello=$C(10)_"Hello World!"
+YDB>set hello="Hello World!"
 
 YDB>write $&mlua.lua("print hello",.output)  ;print requires parentheses
 -1
 YDB>write output
 Lua: [string "mlua(code)"]:1: syntax error near 'hello'
 
-YDB>write $&mlua.lua("print(ydb.get('hello'))",.output)
+YDB>u $p write $&mlua.lua("print(ydb.get('hello'))",.output)
 Hello World!
-
 0
 YDB>write output
 
@@ -35,9 +36,8 @@ YDB>
 Since all Lua code chunks are actually functions, you can also pass parameters and return values:
 
 ```lua
-YDB>do &mlua.lua("print('\nparams:',...) return 'Done'",.out,,1,2)  w out
+YDB>u $p do &mlua.lua("print('params:',...) return 'Done'",.out,,1,2)  w out
 params:	1	2
-
 Done
 YDB>
 ```
@@ -61,7 +61,7 @@ YDB>set ^oaks(1,"shadow")=10,^("angle")=30
 YDB>set ^oaks(2,"shadow")=13,^("angle")=30
 YDB>set ^oaks(3,"shadow")=15,^("angle")=45
 
-YDB>do &mlua.lua("print() ydb.dump('^oaks')",.err) w err  ;NOTE: you will need to define ydb.dump() -- see the MLUA_INIT heading below
+YDB>u $p do &mlua.lua("ydb.dump('^oaks')",.err) w err  ;NOTE: you will need to define ydb.dump() -- see the MLUA_INIT heading below
 ^oaks("1","angle")="30"
 ^oaks("1","shadow")="10"
 ^oaks("2","angle")="30"
@@ -70,7 +70,7 @@ YDB>do &mlua.lua("print() ydb.dump('^oaks')",.err) w err  ;NOTE: you will need t
 ^oaks("3","shadow")="15"
 
 YDB>do &mlua.lua("dofile 'tree_height.lua'",.err) w err  ;see file contents below
-YDB>do &mlua.lua("print() show_oaks( ydb.key('^oaks') )",.err) w err
+YDB>u $p do &mlua.lua("show_oaks( ydb.key('^oaks') )",.err) w err
 Oak 1 is 5.8m high
 Oak 2 is 7.5m high
 Oak 3 is 15.0m high
