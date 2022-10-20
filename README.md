@@ -12,7 +12,7 @@ YDB>u $p do &mlua.lua("print('Hello World!')")
 Hello world!
 ```
 
-(Note that `u $p` flushes YDB's stdout before calling Lua as YDB usually has pending output characters like '\n')
+(Note that `u $p` flushes YDB's stdout before calling Lua as YDB usually has pending output characters like '\n'. This is only necessary before YDB v1.35)
 
 Now let's access a ydb local. At the first print statement we'll intentionally create a Lua syntax error:
 
