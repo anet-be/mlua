@@ -11,13 +11,14 @@ Debug = 0   # increase to >0 for debug output
 
 # environment variables needed to run ydb with source files in the current directory
 Env = {
+    'MLUA_INIT': '',
     'ydb_xc_cstrlib': './cstrlib.xc',
-    'ydb_routines': '. ' + os.environ['ydb_routines'],
+    'ydb_routines': '. ' + os.getenv('ydb_routines', ''),
 
     # use .lua & .so files built by mlua in both . and .. in preference to others in the path
     # this ensures we are testing against our own builds instead of system installed libs
-    'LUA_PATH': './?.lua;../?.lua;;',
-    'LUA_CPATH': './?.so;../?.so;;',
+    'LUA_PATH': './?.lua;../?.lua;' + os.getenv('LUA_PATH','') + ';;',
+    'LUA_CPATH': './?.so;../?.so;' + os.getenv('LUA_CPATH','') + ';;',
 }
 
 
@@ -43,15 +44,8 @@ def run_mroutine(mroutine, *args):
     # set up environment so that dbase can run
     env = os.environ.copy()
     env.update(Env)
-    process_info = subprocess.run(['gtm', '-run', mroutine+'^%benchmark'] + list(args), env=env, capture_output=True)
-    lines = []
-    # Decode lines to utf-8 if possible, otherwise store as byte arrays
-    for line in process_info.stdout.strip(b'\n').split(b'\n'):
-        try:
-            lines.append(line.decode('utf-8'))
-        except UnicodeDecodeError as e:
-            lines.append(line)
-    process_info.lines = lines
+    command = ['gtm', '-run', mroutine+'^%benchmark'] + list(args)
+    process_info = subprocess.run(command, env=env, capture_output=True, encoding='utf-8', errors='namereplace')
     return process_info
 
 def detect_lua_module(module):
@@ -59,7 +53,7 @@ def detect_lua_module(module):
         This is done through ydb and mlua instead of directly through lua to ensure the lua environment is set up the same.
     """
     process_info = run_mroutine('detectLuaModule', module)
-    return int(process_info.stdout)
+    return int(process_info.stdout.strip('\n').split('\n')[-1])
 
 def benchmark(mroutine, *args, ignore_user_time=False, repetitions=int(os.getenv('mlua_benchmark_repetitions', 10))):
     """ Run mroutine from _benchmark.m repetitions times and return the average time taken
@@ -80,15 +74,15 @@ def benchmark(mroutine, *args, ignore_user_time=False, repetitions=int(os.getenv
     user_timings = []
     for _i in range(repetitions):
         process_info, raw_real_time = measure_time(func)
-        lines = process_info.lines
+        lines = process_info.stdout.strip('\n').split('\n')
         # Print any debugging output produced by the mroutine (lines before the last two)
         for line in lines[:-2]:
             print('>', line)
         # get result of routine; e.g. hash value from SHA or length from Strip
         retval = ''
         if len(lines) >= 2:
-            retval = process_info.lines[-2]
-        raw_user_time = 0.0 if ignore_user_time else float(process_info.lines[-1]) / 1e6
+            retval = lines[-2]
+        raw_user_time = 0.0 if ignore_user_time else float(lines[-1]) / 1e6
         real_timings += [raw_real_time]
         user_timings += [raw_user_time]
     real_time = sum(real_timings) / repetitions
