@@ -49,32 +49,62 @@ Essentially, the database table `oaks` can now be accessed more like a regular t
 
 The breakdown of changes needed to implement this solution includes the following:
 
-1. make a `subscript_keys()` iterator like `subscripts()` -- this may be superseded by standard Lua `pairs()` below
+1. Done: keys iterator -- see `pairs()` below
+
 2. Done: subscripts may now be not only strings but also integers, automatically converted to strings like ydb does. 
    - integer only, since floats will cause problems with rounding.
    - in Lua < 5.3 a number is treated as an integer provided tostring(number) has no decimal point; this maintains source compatibility between Lua versions.
-3. make key accept dot notation `key.subkey1.subkey2` -- this syntax has limitations on key name content which means the more general `key()` syntax must also be retained.
-4. allow assignment to `key.subkey`, which is equivalent to assignment to key.subkey.value
-5. create more terse ways of fetching dbase key._value:
-   - Omit: have `key.subscript` or key[subscript] access key.subscript.value provided there is no key.subscript.sub_subscript in the dbase (in which case it returns new key(subscript). This make pretty code but turns out to be dangerous because if sub_subscripts are later added to the dbase, code accessing the key.subscript value will stop working. Plus, it only works on key.subscript not on key.
+
+3. Done: make key accept dot notation `key.subkey1.subkey2` -- this syntax has limitations on key name content which means the more general `key()` syntax must also be retained.
+
+4. Done: allow assignment to `key.subkey`, which is equivalent to assignment to key.subkey.value
+
+5. Done: create more terse ways of fetching dbase key._value:
+   - Omit: access key.subscript.value by referencing `key.subscript` or key[subscript] -- but it would only work when there is no key.subscript.sub_subscript in the dbase (in which case it returns new key(subscript). This makes pretty code but turns out to be dangerous because if sub_subscripts are later added to the dbase, code accessing the key.subscript value will stop working. Plus, it only works on key.subscript not on key.
    - Omit: Could make unary operators access the key.value: ~key (lua>=5.3), #key (lua>=5.2), -key (lua>=5.0). This would be pretty, but are not the usual usage of these operators.
    - `key()` with empty parentheses (on second thought, I'm not sure how valuable this is)
    - `key['']` (on second thought, I'm not sure how valuable this is)
    - key._ This seems the best path and won't clobber many subscript names.
-6. Rename key properties to start with `_`: `.value, .get, .data` become `._value, ._get, ._data`, etc., so they don't clobber common dbase subscript names.
-7. Allow multiple subscripts as parameter lists or as a table in the follows new situations:
+
+6. Done: Rename key properties to start with `_`: `.value, .get, .data` become `._value, ._get, ._data`, etc., so they don't clobber common dbase subscript names.
+
+7. Done: Allow multiple subscripts as parameter lists or as a table in the follows new situations:
    - `key(sub1, sub2, ...)` or `key({sub1, sub2})`
    - make ydb.key(glvn, sub1, sub2, ...) to become equivalent to ydb.key(glvn, {sub1, sub2, ...})
    - ydb.get(glvn, sub1, sub2, ...) to become equivalent to ydb.get(glvn, {sub1, sub2, ...})
    - possibly ydb.set(glvn, sub1, sub2, ..., value) to become equivalent to ydb.set(glvn, {sub1, sub2, ...}, value) for the sake of consistency with get() and key()
    - To make this work efficiently demands a matching update to the low-level `yottadb.get()` to accept two subarrays (rather than a single concatenated one).
-8. Rename `key` to `node` but retain a deprecated `key` with the original syntax for backward compatibility.
-9. make `pairs()` work as expected, and any other metamethods required to make it table-like. Also:
-   - consider making `ipairs()`, as in Lua, to allow iteration of a sequence with order preservation.
-   - but for `ipairs()` to work it will need to iterate natural number keys, as in Lua, even though all keys are strings in YDB -- this would be a variation from Lua tables which only iterates keys of type `number`. However, since we auto-convert number keys to strings (point 2 above), this will seem normal to the Lua user.
-   - care needed to make it backward compatible with Lua 5.2 which works differently with its `__ipairs` metamethod that 5.3 lost.
-10. define Lua `#` operator (which counts only sequential numeric keys) if there is a ydb-way to make it efficient. The main benefit would be to provide compatibility with Lua functions that operate on tables. It's use does not match a typical M way of structuring arrays.
+
+8. Done: rename `key` to `node` but retain a deprecated `key` with the original syntax for backward compatibility.
+
+9. Done: make `pairs()` work as expected
+
+10. Skip: making nodes act like Lua list-tables because it would generate inefficient db code; also unlikely to be used:
+
+   - considered making ipairs() work using `__index()` from Lua 5.2 but later Lua versions implement `ipairs()` by invoking `__index()`.  So that would require making node index by an *integer* to act differently than indexing a node by a *string* as follows:
+
+     - `node['abc']`  => produces a new node so that `node.abc.def.ghi` works
+     - but `node[1]`  => would have to produce value `note(1)._value` for ipairs() to work
+       This integer/string distinction can easily be done, but creates an unexpected syntax inconsistency.
+
+     Instead, use pairs() with numeric subscripts or a numeric `for` as follows:
+
+     - `for k,v in pairs(node) do   if not tonumber(k) break end   <do_your_stuff with k,v>   end`
+     - `for i=1,1/0 do   v=node[i]._  if not v break then   <do_your_stuff with k,v>   end`
+
+   - Decided not to define Lua `#` operator, which counts only sequential numeric keys and is mostly used in Lua to append to a table (t[#t+1] = n). Its use seems unlikely since ipairs() is not implemented, and there is also no way ydb-way to make it efficient. It's use does not match a typical M way of structuring arrays.
+
+   - The consequence of the above is that standard Lua list functions (that use tables as integer-indexed lists) do not work. Specifically: `table.concat, table.insert, table.move, table.pack, table.remove, table.sort`
+
 11. populate a ydb database global using Lua table constructors: `oaktree:set( {shadow=5, angle=30} )`
-12. improve efficiency of lua-yottadb keys by caching them in the form of ydb locals so that the entire subscript array does not need to be looked up every access as is currently the case.
-13. Consider making key(undefined_name) produce and error rather than a new key. What will this do to creating new dbase fields???
+
+12. add ability to cast a key to a node: key(node) and node(key)
+
+13. improve efficiency of lua-yottadb keys by caching them in the form of ydb locals so that the entire subscript array does not need to be looked up every access as is currently the case.
+
+14. programmer usage improvements:
+
+    - Improve ydb.dump and add it to the standard library
+    - Implement a standardized mlua_startup.lua to define more useful table printing with print()
+
 
