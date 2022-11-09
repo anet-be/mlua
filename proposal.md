@@ -49,6 +49,97 @@ Essentially, the database table `oaks` can now be accessed more like a regular t
 
 ## Solution - What you can do now
 
+You run the proposed code above as well as use several other idioms show below.
+
+<style type="text/css">
+.tg  {border-collapse:collapse;border-spacing:0;}
+.tg td{border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;
+  overflow:hidden;padding:10px 5px;word-break:normal;}
+.tg th{border-color:black;border-style:solid;border-width:1px;font-family:Arial, sans-serif;font-size:14px;
+  font-weight:normal;overflow:hidden;padding:10px 5px;word-break:normal;}
+.tg .tg-c3ow{border-color:inherit;text-align:center;vertical-align:top}
+.tg .tg-0pky{border-color:inherit;text-align:left;vertical-align:top}
+</style>
+<table class="tg">
+<thead>
+  <tr>
+    <th class="tg-0pky"></th>
+    <th class="tg-0pky">Old Syntax</th>
+    <th class="tg-0pky">New Syntax</th>
+    <th class="tg-c3ow">Old Syntax Still valid</th>
+  </tr>
+</thead>
+<tbody>
+  <tr>
+    <td class="tg-0pky">Node object</td>
+      <td class="tg-0pky"><pre>k = ydb.key('^oaks')</pre></td>
+    <td class="tg-0pky">n = ydb.node('^oaks')    -- renamed key() to node()</td>
+    <td class="tg-c3ow">yes</td>
+  </tr>
+  <tr>
+    <td class="tg-0pky">Initialize db data</td>
+      <td class="tg-0pky"><pre lang="lua">
+k('1')('shadow').value = 10
+k('1')('angle').value=30&#13;k('2')('shadow').value = 13</br/>k('2')('angle').value=30
+k('3')('shadow').value = 15
+k('3')('angle').value=45</pre lang="lua"></td>
+    <td class="tg-0pky" style=“padding-left: 36px;”>n:_settree({ _='treedata', {shadow=10,angle=30}, {shadow=13,angle=30}, {shadow=15,angle=45}})</td>
+    <td class="tg-c3ow">yes</td>
+  </tr>
+  <tr>
+    <td class="tg-0pky">Integer subscripts</td>
+    <td class="tg-0pky">k1 = k('1')</td>
+    <td class="tg-0pky">n1 = (1)     -- though old string syntax is also allowed</td>
+    <td class="tg-c3ow">yes</td>
+  </tr>
+  <tr>
+    <td class="tg-0pky">Subscripts lists</td>
+    <td class="tg-0pky">k('1')('angle')('subangle') k:set()</td>
+    <td class="tg-0pky">n(1, 'angle', 'subangle')</td>
+    <td class="tg-c3ow">yes</td>
+  </tr>
+  <tr>
+    <td class="tg-0pky">Dot notation</td>
+    <td class="tg-0pky">k1('angle')('subangle')</td>
+    <td class="tg-0pky">n1.angle.subangle</td>
+    <td class="tg-c3ow">yes</td>
+  </tr>
+  <tr>
+    <td class="tg-0pky">Property set</td>
+    <td class="tg-0pky">k1('angle').value = 3</td>
+    <td class="tg-0pky">n1.angle.<span style="font-style:italic">_value = 3        OR n1.angle._</span> = 3 (underscore properties prevents confusion with node names)</td>
+    <td class="tg-c3ow">no</td>
+  </tr>
+  <tr>
+    <td class="tg-0pky">Property get</td>
+    <td class="tg-0pky">angle = k1('angle').value</td>
+    <td class="tg-0pky">angle = n1.angle.<span style="font-style:italic">_value  OR angle = n1.angle._</span>          OR angle = n1.angle()</td>
+    <td class="tg-c3ow">no</td>
+  </tr>
+  <tr>
+    <td class="tg-0pky">Method run</td>
+    <td class="tg-0pky">k1.set(3)</td>
+    <td class="tg-0pky">n1._set(3)</td>
+    <td class="tg-c3ow">no</td>
+  </tr>
+</tbody>
+</table>
+
+
+
+|                    | Old Syntax                                                   | New Syntax                                                   | Old<br />Syntax<br />Still valid |
+| ------------------ | :----------------------------------------------------------- | ------------------------------------------------------------ | :------------------------------: |
+| Node object        | k = ydb.key('^oaks')                                         | n = ydb.node('^oaks')    -- renamed key() to node()          |               yes                |
+| Initialize db data | k('1')('shadow').value = 10<br />k('1')('angle').value=30<br />k('2')('shadow').value = 13<br />k('2')('angle').value=30<br />k('3')('shadow').value = 15<br />k('3')('angle').value=45 | n:\_settree({ \_='treedata', {shadow=10,angle=30}, {shadow=13,angle=30}, {shadow=15,angle=45}}) |               yes                |
+| Integer subscripts | k1 = k('1')                                                  | n1 = (1)     -- though old string syntax is also allowed     |               yes                |
+| Subscripts lists   | k('1')('angle')('subangle')<br />k:set()                     | n(1, 'angle', 'subangle')                                    |               yes                |
+| Dot notation       | k1('angle')('subangle')                                      | n1.angle.subangle                                            |               yes                |
+| Property set       | k1('angle').value = 3                                        | n1.angle.\_value = 3        OR<br />n1.angle.\_ = 3<br />(underscore properties prevents confusion with node names) |                no                |
+| Property get       | angle = k1('angle').value                                    | angle = n1.angle.\_value  OR<br />angle = n1.angle.\_          OR<br />angle = n1.angle() |                no                |
+| Method run         | k1.set(3)                                                    | n1._set(3)                                                   |                no                |
+
+
+
 ### Details of the changes
 
 The breakdown of changes needed to implement this solution includes the following:
