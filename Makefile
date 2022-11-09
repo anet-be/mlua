@@ -20,11 +20,14 @@ LUA_MOD_INSTALL=/usr/local/share/lua/$(LUA_VERSION)
 LUA_YOTTADB_VERSION=master
 LUA_YOTTADB_SOURCE=https://github.com/berwynhoyt/lua-yottadb.git
 # Locate YDB install
-YDB_DIST:=$(shell pkg-config --variable=prefix yottadb)
-YDB_INSTALL:=$(YDB_DIST)/plugin
+YDB_DIST:=$(ydb_dist)
 ifeq ($(YDB_DIST),)
- $(error please install yottadb or supply the path to your yottadb install with 'make YDB_INSTALL=/path/to/ydb')
+ YDB_DIST:=$(shell pkg-config --variable=prefix yottadb)
+ ifeq ($(YDB_DIST),)
+   $(error please install yottadb or supply the path to your yottadb install with 'make YDB_INSTALL=/path/to/ydb')
+ endif
 endif
+YDB_INSTALL:=$(YDB_DIST)/plugin
 
 
 
