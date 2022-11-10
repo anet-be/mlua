@@ -36,7 +36,7 @@ YDB_INSTALL:=$(YDB_DIST)/plugin
 LIBLUA = build/lua-$(LUA_BUILD)/install/lib/liblua.a
 YDB_FLAGS = $(shell pkg-config --cflags yottadb)
 LUA_FLAGS = -Ibuild/lua-$(LUA_BUILD)/install/include -Wl,--library-path=build/lua-$(LUA_BUILD)/install/lib -Wl,-l:liblua.a
-LDFLAGS = -lm -ldl -lyottadb -L$(YDB_DIST)
+LDFLAGS = -lm -ldl -lyottadb -L$(YDB_DIST) -Wl,-rpath,$(YDB_DIST)
 CFLAGS = -fPIC -std=c99 -pedantic -Wall -Wno-unknown-pragmas  $(YDB_FLAGS) $(LUA_FLAGS)
 CC = gcc
 # bash and GNU sort required for LUA_BUILD version comparison
