@@ -166,6 +166,8 @@ angle = n1.angle()
 </table>
 *the `_` attribute prefix in the new syntax prevents node methods from clobbering names of database subnodes.
 
+
+
 **Additional visibility tools** are supplied in a sample `startup.lua` to enhance the Lua prompt:
 
 ``` lua
@@ -219,6 +221,8 @@ The breakdown of changes needed to implement this solution includes the followin
    - Done: ydb.set(glvn, sub1, sub2, ..., value) to become equivalent to ydb.set(glvn, {sub1, sub2, ...}, value) for the sake of consistency with get() and node()
 8. 
 9. Done: make `pairs()` work as expected
+   - Also made iterator node._subscripts() work differently than key.subscripts(). The old one started at the current subscript and produced *sibling* subscripts at the same level until the end of the collation. The new one iterates all *child* subscripts of the specified node. I'm not sure whether the old one was intended or a bug, but the new one makes much more sense to me: to iterate over a whole node's children.
+
 10. Skip: making nodes act like specific integer-indexed Lua list-type tables because it would generate inefficient db code; also unlikely to be used:
 
    - Considered making ipairs() work using `__index()` from Lua 5.2 but later Lua versions implement `ipairs()` by invoking `__index()`.  So that would require making node index by an *integer* to act differently than indexing a node by a *string* as follows:
