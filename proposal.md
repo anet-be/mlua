@@ -166,9 +166,9 @@ angle = n1.angle()
 </table>
 *the `_` attribute prefix in the new syntax prevents node methods from clobbering names of database subnodes.
 
+#### Additional visibility tools
 
-
-**Additional visibility tools** are supplied in a sample `startup.lua` to enhance the Lua prompt:
+These are supplied in a sample `startup.lua` to enhance the Lua prompt:
 
 ``` lua
 -- Node dump at Lua prompt
