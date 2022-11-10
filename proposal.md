@@ -36,7 +36,7 @@ The problems are that:
 
 ## Proposal
 
-In the proposed solution, this would become:
+In the proposed solution, the code above becomes:
 
 ```lua
 for index, oaktree in pairs(ydb.node('^oaks')) do
@@ -164,7 +164,7 @@ angle = n1.angle()
   </tr>
 </tbody>
 </table>
-*the \_ attribute prefix in the new syntax prevents node methods from clobbering names of database subnodes.
+*the `_` attribute prefix in the new syntax prevents node methods from clobbering names of database subnodes.
 
 **Additional visibility tools** are supplied in a sample `startup.lua` to enhance the Lua prompt:
 
