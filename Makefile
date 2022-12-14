@@ -115,7 +115,7 @@ update-lua-yottadb: build/lua-yottadb/Makefile
 	git -C build/lua-yottadb pull
 _yottadb.so: build/lua-yottadb/Makefile .ARG~LUA_BUILD build-lua		# Depends on lua build because CFLAGS includes lua's .h files
 	@echo Building $@
-	$(MAKE) -C build/lua-yottadb _yottadb.so
+	$(MAKE) -C build/lua-yottadb _yottadb.so CFLAGS="-g -fPIC -std=c11 -I$(YDB_DIST) -I$(LUA_FLAGS) -Wno-discarded-qualifiers -pedantic -Wall -Wno-unknown-pragmas"
 	cp build/lua-yottadb/_yottadb.so .
 yottadb.lua: build/lua-yottadb/yottadb.lua
 	cp build/lua-yottadb/yottadb.lua $@
