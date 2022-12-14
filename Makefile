@@ -34,10 +34,12 @@ YDB_INSTALL:=$(YDB_DIST)/plugin
 # ~~~  Internal variables
 
 LIBLUA = build/lua-$(LUA_BUILD)/install/lib/liblua.a
-YDB_FLAGS = $(shell pkg-config --cflags yottadb)
-LUA_FLAGS = -Ibuild/lua-$(LUA_BUILD)/install/include -Wl,--library-path=build/lua-$(LUA_BUILD)/install/lib -Wl,-l:liblua.a
+YDB_INCLUDES = $(shell pkg-config --cflags yottadb)
+LUA_INCLUDES = -Ibuild/lua-$(LUA_BUILD)/install/include -Wl,--library-path=build/lua-$(LUA_BUILD)/install/lib -Wl,-l:liblua.a
+LUA_YOTTADB_INCLUDES = -I../lua-$(LUA_BUILD)/install/include -Wl,--library-path=../lua-$(LUA_BUILD)/install/lib -Wl,-l:liblua.a
+LUA_YOTTADB_CFLAGS = -fPIC -std=c11 -pedantic -Wall -Wno-unknown-pragmas -Wno-discarded-qualifiers $(YDB_INCLUDES) $(LUA_YOTTADB_INCLUDES)
+CFLAGS = -fPIC -std=c11 -pedantic -Wall -Wno-unknown-pragmas  $(YDB_INCLUDES) $(LUA_INCLUDES)
 LDFLAGS = -lm -ldl -lyottadb -L$(YDB_DIST) -Wl,-rpath,$(YDB_DIST)
-CFLAGS = -fPIC -std=c99 -pedantic -Wall -Wno-unknown-pragmas  $(YDB_FLAGS) $(LUA_FLAGS)
 CC = gcc
 # bash and GNU sort required for LUA_BUILD version comparison
 SHELL=bash
@@ -115,7 +117,7 @@ update-lua-yottadb: build/lua-yottadb/Makefile
 	git -C build/lua-yottadb pull
 _yottadb.so: build/lua-yottadb/Makefile .ARG~LUA_BUILD build-lua		# Depends on lua build because CFLAGS includes lua's .h files
 	@echo Building $@
-	$(MAKE) -C build/lua-yottadb _yottadb.so CFLAGS="-g -fPIC -std=c11 -I$(YDB_DIST) -I$(LUA_FLAGS) -Wno-discarded-qualifiers -pedantic -Wall -Wno-unknown-pragmas"
+	$(MAKE) -C build/lua-yottadb _yottadb.so CFLAGS="$(LUA_YOTTADB_CFLAGS)"
 	cp build/lua-yottadb/_yottadb.so .
 yottadb.lua: build/lua-yottadb/yottadb.lua
 	cp build/lua-yottadb/yottadb.lua $@
@@ -127,6 +129,7 @@ build/lua-yottadb/Makefile:
 
 clean-lua-yottadb:
 	rm -f _yottadb.so yottadb.lua
+	$(MAKE) -C build/lua-yottadb clean
 
 
 # ~~~ Make any variable name % become like a dependency so that when it $(%) changes, targets are rebuilt
@@ -150,7 +153,7 @@ allvars:
 # ~~~ Clean
 
 # clean just our own mlua build
-clean:
+clean: clean-lua-yottadb
 	rm -f *.o *.so try
 	rm -rf tests
 	rm -rf deploy
