@@ -18,7 +18,7 @@ LUA_LIB_INSTALL=/usr/local/lib/lua/$(LUA_VERSION)
 LUA_MOD_INSTALL=/usr/local/share/lua/$(LUA_VERSION)
 # Select which version tag of lua-yottadb to fetch
 LUA_YOTTADB_VERSION=master
-LUA_YOTTADB_SOURCE=https://github.com/berwynhoyt/lua-yottadb.git
+LUA_YOTTADB_SOURCE=https://github.com/anet-be/lua-yottadb.git
 # Locate YDB install
 YDB_DIST:=$(ydb_dist)
 ifeq ($(YDB_DIST),)
@@ -52,6 +52,7 @@ FETCH_LIBREADLINE = $(if $(shell which apt-get), $(BECOME_ROOT) apt-get install 
 all: fetch build
 fetch: fetch-lua fetch-lua-yottadb			# Download files for build; no internet required after this
 build: build-lua build-lua-yottadb build-mlua
+update: update-lua-yottadb
 
 build-mlua: mlua.so
 mlua.o: mlua.c .ARG~LUA_BUILD build-lua
@@ -107,18 +108,22 @@ fetch-readline: /usr/include/readline/readline.h
 
 # ~~~ Lua-yottadb: fetch lua-yottadb and build it
 
-fetch-lua-yottadb: build/lua-yottadb/_yottadb.c
+fetch-lua-yottadb: build/lua-yottadb/Makefile
 build-lua-yottadb: _yottadb.so yottadb.lua
-_yottadb.so: build/lua-yottadb/_yottadb.c .ARG~LUA_BUILD build-lua		# Depends on lua build because CFLAGS includes lua's .h files
+update-lua-yottadb: build/lua-yottadb/Makefile
+	git -C build/lua-yottadb remote set-url origin $(LUA_YOTTADB_SOURCE)
+	git -C build/lua-yottadb pull
+_yottadb.so: build/lua-yottadb/Makefile .ARG~LUA_BUILD build-lua		# Depends on lua build because CFLAGS includes lua's .h files
 	@echo Building $@
-	$(CC) build/lua-yottadb/_yottadb.c  -o $@  -shared  $(CFLAGS) $(LDFLAGS)  -Wno-return-type -Wno-unused-but-set-variable -Wno-discarded-qualifiers
+	$(MAKE) -C build/lua-yottadb _yottadb.so
+	cp build/lua-yottadb/_yottadb.so .
 yottadb.lua: build/lua-yottadb/yottadb.lua
 	cp build/lua-yottadb/yottadb.lua $@
 .PRECIOUS: build/lua-yottadb/yottadb.lua
-build/lua-yottadb/_yottadb.c:
+build/lua-yottadb/Makefile:
 	@echo Fetching $(dir $@)
 	git clone --branch "$(LUA_YOTTADB_VERSION)" "$(LUA_YOTTADB_SOURCE)" $(dir $@)
-.PRECIOUS: build/lua-yottadb/_yottadb.c
+.PRECIOUS: build/lua-yottadb/Makefile
 
 clean-lua-yottadb:
 	rm -f _yottadb.so yottadb.lua
