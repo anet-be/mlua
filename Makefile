@@ -35,11 +35,11 @@ YDB_INSTALL:=$(YDB_DIST)/plugin
 
 LIBLUA = build/lua-$(LUA_BUILD)/install/lib/liblua.a
 YDB_INCLUDES = $(shell pkg-config --cflags yottadb)
-LUA_INCLUDES = -Ibuild/lua-$(LUA_BUILD)/install/include -Wl,--library-path=build/lua-$(LUA_BUILD)/install/lib -Wl,-l:liblua.a
-LUA_YOTTADB_INCLUDES = -I../lua-$(LUA_BUILD)/install/include -Wl,--library-path=../lua-$(LUA_BUILD)/install/lib -Wl,-l:liblua.a
+LUA_INCLUDES = -Ibuild/lua-$(LUA_BUILD)/install/include
+LUA_YOTTADB_INCLUDES = -I../lua-$(LUA_BUILD)/install/include
 LUA_YOTTADB_CFLAGS = -fPIC -std=c11 -pedantic -Wall -Wno-unknown-pragmas -Wno-discarded-qualifiers $(YDB_INCLUDES) $(LUA_YOTTADB_INCLUDES)
 CFLAGS = -fPIC -std=c11 -pedantic -Wall -Wno-unknown-pragmas  $(YDB_INCLUDES) $(LUA_INCLUDES)
-LDFLAGS = -lm -ldl -lyottadb -L$(YDB_DIST) -Wl,-rpath,$(YDB_DIST)
+LDFLAGS = -lm -ldl -lyottadb -L$(YDB_DIST) -Wl,-rpath,$(YDB_DIST),--library-path=build/lua-$(LUA_BUILD)/install/lib,-l:liblua.a
 CC = gcc
 # bash and GNU sort required for LUA_BUILD version comparison
 SHELL=bash
@@ -115,9 +115,10 @@ build-lua-yottadb: _yottadb.so yottadb.lua
 update-lua-yottadb: build/lua-yottadb/Makefile
 	git -C build/lua-yottadb remote set-url origin $(LUA_YOTTADB_SOURCE)
 	git -C build/lua-yottadb pull
-_yottadb.so: build/lua-yottadb/Makefile .ARG~LUA_BUILD build-lua		# Depends on lua build because CFLAGS includes lua's .h files
+build/lua-yottadb/_yottadb.so: build/lua-yottadb/*.[ch] .ARG~LUA_BUILD build-lua		# Depends on lua build because CFLAGS includes lua's .h files
 	@echo Building $@
 	$(MAKE) -C build/lua-yottadb _yottadb.so CFLAGS="$(LUA_YOTTADB_CFLAGS)"
+_yottadb.so: build/lua-yottadb/_yottadb.so
 	cp build/lua-yottadb/_yottadb.so .
 yottadb.lua: build/lua-yottadb/yottadb.lua
 	cp build/lua-yottadb/yottadb.lua $@
