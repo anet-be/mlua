@@ -117,7 +117,7 @@ update-lua-yottadb: build/lua-yottadb/Makefile
 	git -C build/lua-yottadb pull
 build/lua-yottadb/_yottadb.so: build/lua-yottadb/*.[ch] .ARG~LUA_BUILD build-lua		# Depends on lua build because CFLAGS includes lua's .h files
 	@echo Building $@
-	$(MAKE) -C build/lua-yottadb _yottadb.so CFLAGS="$(LUA_YOTTADB_CFLAGS)"
+	$(MAKE) -C build/lua-yottadb _yottadb.so CFLAGS="$(LUA_YOTTADB_CFLAGS)" lua=../lua-$(LUA_BUILD)/install/bin/lua --no-print-directory
 _yottadb.so: build/lua-yottadb/_yottadb.so
 	cp build/lua-yottadb/_yottadb.so .
 yottadb.lua: build/lua-yottadb/yottadb.lua
@@ -127,7 +127,8 @@ build/lua-yottadb/Makefile:
 	@echo Fetching $(dir $@)
 	git clone --branch "$(LUA_YOTTADB_VERSION)" "$(LUA_YOTTADB_SOURCE)" $(dir $@)
 .PRECIOUS: build/lua-yottadb/Makefile
-
+test-lua-yottadb: build-lua-yottadb
+	$(MAKE) -C build/lua-yottadb clean test CFLAGS="$(LUA_YOTTADB_CFLAGS)" lua=../lua-$(LUA_BUILD)/install/bin/lua --no-print-directory
 clean-lua-yottadb:
 	rm -f _yottadb.so yottadb.lua
 	$(MAKE) -C build/lua-yottadb clean
@@ -169,10 +170,20 @@ refresh: clean
 
 # ~~~ Test
 
+LUA_TEST_BUILDS:=5.1.5 5.2.4 5.3.6 5.4.4
+testall: test
+	@echo
+	@echo Testing with Lua versions $(LUA_TEST_BUILDS)
+	@for lua in $(LUA_TEST_BUILDS); do \
+		echo ; \
+		echo "*** Testing Lua $$lua and lua-yottadb ***" ; \
+		$(MAKE) test-lua-yottadb LUA_BUILD=$$lua --no-print-directory || exit 1; \
+	done
+	$(MAKE) clean-lua-yottadb --no-print-directory  # ensure not built with any Lua version lest it confuse future builds with default Lua
+	@echo Successfully tested with Lua versions $(LUA_TEST_BUILDS)
+
 test:
-	mkdir -p tests
-	python3 test.py
-	#env ydb_routines="./tests $(ydb_routines)" ydb -run "^tests"
+	mkdir -p tests && python3 test.py
 
 benchmarks:
 	$(MAKE) -C benchmarks
