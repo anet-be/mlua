@@ -114,7 +114,7 @@ fetch-lua-yottadb: build/lua-yottadb/Makefile
 build-lua-yottadb: _yottadb.so yottadb.lua
 update-lua-yottadb: build/lua-yottadb/Makefile
 	git -C build/lua-yottadb remote set-url origin $(LUA_YOTTADB_SOURCE)
-	git -C build/lua-yottadb pull
+	git -C build/lua-yottadb pull --rebase
 build/lua-yottadb/_yottadb.so: build/lua-yottadb/*.[ch] .ARG~LUA_BUILD build-lua		# Depends on lua build because CFLAGS includes lua's .h files
 	@echo Building $@
 	$(MAKE) -C build/lua-yottadb _yottadb.so CFLAGS="$(LUA_YOTTADB_CFLAGS)" lua=../lua-$(LUA_BUILD)/install/bin/lua --no-print-directory
