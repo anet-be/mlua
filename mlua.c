@@ -16,6 +16,8 @@
 
 #include "mlua.h"
 
+#define DEFAULT_OUTPUT stdout
+
 // For one Lua instance per process, this works, since each process gets new shared library globals.
 // But to make MUMPS support multiple simultaneous Lua instances,
 // we'd need to return this handle to the user instead of making it a global.
@@ -27,15 +29,21 @@ lua_State *Global_lua = NULL;
 // returns -1 if it had to truncate the output
 // otherwise return 0
 int outputf(gtm_string_t *output, int output_size, const char *fmt, ...) {
-  if (!output || !output->address) return -2;
+  if (output && !output->address) output=NULL;
   va_list argp;
   va_start(argp, fmt);
-  output->length = vsnprintf(output->address, output_size, fmt, argp);
-  va_end(argp);
-  if (output->length > output_size) {  // snprintf truncates but still returns full output size
-    output->length = output_size-1;   // drop final NUL
-    return -1;
+  if (output) {
+    output->length = vsnprintf(output->address, output_size, fmt, argp);
+    if (output->length > output_size) {  // snprintf truncates but still returns full output size
+      output->length = output_size-1;   // drop final NUL
+      va_end(argp);
+      return -1;
+    }
+  } else {
+    vfprintf(DEFAULT_OUTPUT, fmt, argp);
+    fflush(DEFAULT_OUTPUT);
   }
+  va_end(argp);
   return 0;
 }
 
@@ -55,7 +63,7 @@ gtm_int_t mlua_version_number(int _argc) {
 // Flags is an optional bitfield, whose bitmasks are defined in mlua.h as follows:
 //    MLUA_IGNORE_INIT: ignore MLUA_INIT
 // return new lua_State handle or zero if there is an error
-//    optional output returns empty on success or an error message on error
+//    optional output returns empty on success or an error message on error (or on stdout of output missing)
 gtm_long_t mlua_open(int argc, gtm_string_t *output, gtm_int_t flags) {
   lua_State *L;
   if (argc<1) output=NULL; // don't return error string
@@ -150,16 +158,22 @@ static int push_code(lua_State *L, const gtm_string_t *code_string) {
 // mlua_lua() helper to format result output data type for more natural interpretation by M
 // the data type is passed in on the top of the Lua stack and is popped off before return
 static void format_result(lua_State *L, gtm_string_t *output, int output_size) {
-  if (!output) goto done;
   size_t len;
   const char *s;
+  if (output && !output->address) output=NULL;
   int output_type = lua_type(L, -1);
   switch (output_type) {
     case LUA_TNIL:
+      if (!output) goto done;
       output->address[0] = '\0';
       output->length = 0;
       break;
     case LUA_TBOOLEAN:
+      if (!output) {
+        fprintf(DEFAULT_OUTPUT, "%d", lua_toboolean(L, -1));
+        fflush(DEFAULT_OUTPUT);
+        goto done;
+      }
       output->address[0] = '0' + lua_toboolean(L, -1);
       output->address[1] = '\0';
       output->length = 1;
@@ -168,6 +182,21 @@ static void format_result(lua_State *L, gtm_string_t *output, int output_size) {
     case LUA_TSTRING:
       // Return output string, ensuring that strings containing NULs are correctly returned in full
       s = lua_tolstring(L, -1, &len);
+      if (!output) {
+        if (output_type == LUA_TNUMBER) {
+          // Convert any exponential notation 'e' in a number to 'E' so YDB can understand it.
+          char *e_position = memchr(s, 'e', len);
+          if (e_position) {
+            fwrite(s, 1, e_position-s, DEFAULT_OUTPUT);
+            fwrite("E", 1, 1, DEFAULT_OUTPUT);
+            s = e_position+1;
+            len -= e_position - s + 1;
+          }
+        }
+        fwrite(s, 1, len, DEFAULT_OUTPUT);
+        fflush(DEFAULT_OUTPUT);
+        goto done;
+      }
       if (len > output_size)
         len = output_size;
       memcpy(output->address, s, len);
@@ -189,11 +218,11 @@ done:
 // If luaState_handle is 0, use the global lua_State (opening it if needed),
 //    but be aware that any threaded app (e.g. a C app linked into to ydb)
 //    must not call the same lua_State from multiple threads
-// return 0 on success and return a string representation of the return value in .output if .output was supplied
-// return <0 on error and return the error message in .output if .output was supplied
+// return 0 on success and return a string representation of the return value in .output (if supplied) or on stdout
+// return <0 on error and return the error message in .output (if supplied) or on stdout
 gtm_int_t mlua_lua(int argc, const gtm_string_t *code, gtm_string_t *output, gtm_long_t luaState_handle, ...) {
   if (argc<1) return MLUA_ERROR;  // no code to run so return error status -- but can't return output string (not supplied)
-  if (argc<2 || !output->address) output=NULL; // don't return output string
+  if (argc<2 || !output || !output->address) output=NULL; // don't return output string
   if (argc<3) luaState_handle=0; // use global lua_State
   int output_size = output? output->length: 0; // ydb sets it to preallocated size
 

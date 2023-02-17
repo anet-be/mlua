@@ -2,9 +2,9 @@
 
 ## Overview
 
-MLua is a Lua language plugin for the MUMPS database. It provides the means to call Lua from within M. Here is [more complete documentation](https://dev.anet.be/doc/brocade/mlua/html/index.html) of where this project is headed. MLua incorporates [lua-yottadb](https://github.com/orbitalquark/lua-yottadb/) so that Lua code written for that (per ydb's [Multi-Language Programmer's Guide](https://docs.yottadb.com/MultiLangProgGuide/luaprogram.html)) will also work with MLua.
+MLua is a Lua language plugin for the MUMPS database. It provides the means to call Lua from within M. Here is [more complete documentation](https://dev.anet.be/doc/brocade/mlua/html/index.html) of where this project is headed. MLua incorporates [lua-yottadb](https://github.com/orbitalquark/lua-yottadb/) (cf. ydb's [Multi-Language Programmer's Guide](https://docs.yottadb.com/MultiLangProgGuide/luaprogram.html)) which operates in the other direction, letting Lua code access an M database.
 
-Invoking a Lua command is easy:
+Invoking a Lua command from M is easy:
 
 ```lua
 $ ydb
@@ -12,7 +12,7 @@ YDB>u $p do &mlua.lua("print('Hello World!')")
 Hello world!
 ```
 
-(Note that `u $p` flushes YDB's stdout before calling Lua as YDB usually has pending output characters like '\n'. This is only necessary before YDB v1.35)
+(Note: prior to YDB v1.35 you'll want to prefix your command with `u $p ` to flush YDB's '\n' to stdout before calling Lua)
 
 Now let's access a ydb local. At the first print statement we'll intentionally create a Lua syntax error:
 
@@ -20,23 +20,19 @@ Now let's access a ydb local. At the first print statement we'll intentionally c
 YDB>do &mlua.lua("ydb = require 'yottadb'")
 YDB>set hello="Hello World!"
 
-YDB>write $&mlua.lua("print hello",.output)  ;print requires parentheses
--1
-YDB>write output
-Lua: [string "mlua(code)"]:1: syntax error near 'hello'
-
-YDB>u $p write $&mlua.lua("print(ydb.get('hello'))",.output)
+YDB>do &mlua.lua("return ydb.get('hello')")
 Hello World!
-0
-YDB>write output
+YDB>do &mlua.lua("return ydb.get('hello')",.output)  ; capture return value
 
+YDB>w output
+Hello World!
 YDB>
 ```
 
 Since all Lua code chunks are actually functions, you can also pass parameters and return values:
 
 ```lua
-YDB>u $p do &mlua.lua("print('params:',...) return 'Done'",.out,,1,2)  w out
+YDB>do &mlua.lua("print('params:',...) return 'Done'",.out,,1,2)  w out
 params:	1	2
 Done
 YDB>
@@ -61,7 +57,7 @@ YDB>set ^oaks(1,"shadow")=10,^("angle")=30
 YDB>set ^oaks(2,"shadow")=13,^("angle")=30
 YDB>set ^oaks(3,"shadow")=15,^("angle")=45
 
-YDB>u $p do &mlua.lua("ydb.dump('^oaks')",.err) w err  ;NOTE: you will need to define ydb.dump() -- see the MLUA_INIT heading below
+YDB>do &mlua.lua("return ydb.dump('^oaks')")  ;NOTE: you will need to define ydb.dump() -- see the MLUA_INIT heading below
 ^oaks("1","angle")="30"
 ^oaks("1","shadow")="10"
 ^oaks("2","angle")="30"
@@ -69,8 +65,8 @@ YDB>u $p do &mlua.lua("ydb.dump('^oaks')",.err) w err  ;NOTE: you will need to d
 ^oaks("3","angle")="45"
 ^oaks("3","shadow")="15"
 
-YDB>do &mlua.lua("dofile 'tree_height.lua'",.err) w err  ;see file contents below
-YDB>u $p do &mlua.lua("show_oaks( ydb.key('^oaks') )",.err) w err
+YDB>do &mlua.lua("dofile 'tree_height.lua'")  ;see file contents below
+YDB>do &mlua.lua("show_oaks( ydb.key('^oaks') )")
 Oak 1 is 5.8m high
 Oak 2 is 7.5m high
 Oak 3 is 15.0m high
@@ -127,7 +123,7 @@ Here is the list of supplied functions, [optional parameters in square brackets]
 
 Be aware that all parameters are strings and are not automatically converted to Lua numbers. Parameters are currently limited to 8, but this may easily be increased in mlua.xc.
 
-On success, `mlua.lua()` fills .output (if given) with the return value of the code chunk. If the return value is not a string, it is encoded as follows:
+On success, `mlua.lua()` fills .output (if given) with the return value of the code chunk. If only one parameter is supplied, output will go to stdout). If the return value is not a string, it is encoded as follows:
 
 * nil ==> "" (empty string)
 * boolean ==> "0" or "1"
@@ -137,11 +133,11 @@ On success, `mlua.lua()` fills .output (if given) with the return value of the c
 
 If the luaState handle is missing or 0, mlua.lua() will run the code in the default global lua_State, automatically opening it the first time you call mlua.lua(). Alternatively, you can supply a luaState with a handle returned by mlua.open() (see below) to run code in a different lua_State.
 
-On error, `mlua.lua()` returns nonzero and .output (if given) returns the error message. Note that the error value return is currently equal to -1. This may be enhanced in the future to also return positive integers equal to ERRNO or YDB errors whenever YDB functions called by Lua are the cause of the error. However, for now, all errors return -1 and any YDB error code is encoded into the error message just like any other Lua error (Lua 5.4 does not yet support coded or named errors).
+On error, `mlua.lua()` returns nonzero and the error message is returned in .output (if >1 parameter supplied) or sent to stdout. Note that the error value return is currently equal to -1. This may be enhanced in the future to also return positive integers equal to ERRNO or YDB errors whenever YDB functions called by Lua are the cause of the error. However, for now, all errors return -1 and any YDB error code is encoded into the error message just like any other Lua error (Lua 5.4 does not yet support coded or named errors).
 
-**`mlua.open()`** creates a new 'lua_State' which contains a new Lua context, stack, and global variables, completely independent from other lua_States (see the Lua Reference Manual on the [Application Programmer Interface](https://www.lua.org/manual/5.4/manual.html#4)). `mlua.open()` returns a luaState handle which can be passed to mlua.lua(). On error, it returns zero and .output (if given) returns the error message.
+**`mlua.open()`** creates a new 'lua_State' which contains a new Lua context, stack, and global variables, completely independent from other lua_States (see the Lua Reference Manual on the [Application Programmer Interface](https://www.lua.org/manual/5.4/manual.html#4)). `mlua.open()` returns a luaState handle which can be passed to mlua.lua(). On error, it returns zero and the error message is returned in .output (if >0 parameters are given) or sent to stdout.
 
-**`mlua.close()`** can be called if you have finished using the lua_State, in order to free up any memory that a Lua_State has allocated, first calling any garbage-collection meta-methods you have introduced in Lua. It returns nothing, and cannot produce an error.
+**`mlua.close()`** can be called if you have finished using the lua_State, in order to free up any memory that a lua_State has allocated, first calling any garbage-collection meta-methods you have introduced in Lua. It returns nothing, and cannot produce an error.
 
 
 
@@ -250,4 +246,23 @@ Some benchmarks are installed by the Makefile. Others will require manual instal
    Possibly because you have not defined the dump function, or have not done `ydb=require'yottadb'`. Check the documentation heading [MLUA_INIT and ydb.dump()](#mluainit-and-ydbdump).
 
    To see error messages, make sure you print the output variable like so: `do &mlua.lua("your_code",.out) w out`
+
+3. When I `require 'yottadb'` why do I get `error loading module '_yottadb' from file '**/_yottadb.so':`?
+
+   TLDR: Try to re-run MLua's `make install`
+   
+   This will fix the problem if your `mlua.so` and `_yottadb.so` were built against different Lua versions. This sometimes happens if you build and install lua-yottadb separately from MLua. You can test which Lua version mlua.so expects, and compare the search path for _yottadb.so, by running:
+   
+   ```shell
+   $ ydb
+   YDB>do &mlua.lua("return _VERSION")
+   Lua 5.2
+   YDB>do &mlua.lua("return package.cpath")
+   <shows search path for _yottadb.so>
+   ```
+   
+   Now test where Lua is trying to find your `_yottadb.so` by running `do &mlua.lua("print(package.cpath)")` (cf. environment variable LUA_CPATH). Note that these two files are typically located at:
+   
+   - /usr/local/lib/yottadb/r1??/plugin
+   - /usr/local/lib/lua/5.?/_yottadb.so
 
