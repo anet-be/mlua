@@ -13,7 +13,7 @@ Debug = 0   # increase to >0 for debug output
 Env = {
     'MLUA_INIT': '',
     'ydb_xc_cstrlib': './cstrlib.xc',
-    'ydb_routines': '. ' + os.getenv('ydb_routines', ''),
+    'ydb_routines': '. ',
 
     # use .lua & .so files built by mlua in both . and .. in preference to others in the path
     # this ensures we are testing against our own builds instead of system installed libs
@@ -53,6 +53,8 @@ def detect_lua_module(module):
         This is done through ydb and mlua instead of directly through lua to ensure the lua environment is set up the same.
     """
     process_info = run_mroutine('detectLuaModule', module)
+    if process_info.stderr:
+        raise Exception(process_info.stderr)
     return int(process_info.stdout.strip('\n').split('\n')[-1])
 
 def benchmark(mroutine, *args, ignore_user_time=False, repetitions=int(os.getenv('mlua_benchmark_repetitions', 10))):

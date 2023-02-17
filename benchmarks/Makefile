@@ -9,11 +9,11 @@ YDB_INSTALL := $(YDB_DIST)/plugin
 CC := gcc
 
 # first target is the default
-test: lua-tools
+benchmark: lua-tools
 	$(MAKE) cmumps build-brocr --no-print-directory || $(MAKE) bad-deps -s
 	./benchmark.py
 # alternative target for users who do not permission to access cmumps or qtechng -- though it won't have anything to compare against
-test-lua-only: lua-tools
+benchmark-lua-only: lua-tools
 	./benchmark.py
 fetch:
 	$(MAKE) fetch-lua-tools fetch-brocr fetch-cmumps  --no-print-directory || $(MAKE) bad-deps -s
@@ -25,10 +25,10 @@ bad-deps:
 	&& echo \
 	&& echo "This may have failed because you do not have ssh access to" \
 	&& echo "(proprietary) cmumps and qtechng (from https://www.uantwerpen.be/nl/projecten/anet/brocade/)." \
-	&& echo "If that is the case, you can produce just the MLua benchmarks using 'make test-lua-only'," \
+	&& echo "If that is the case, you can produce just the MLua benchmarks using 'make benchmark-lua-only'," \
 	&& echo "though you obviously won't be able to compare against those proprietary C and Go benchmarks" \
 	&& echo \
-	&& echo "Try: make test-lua-only" \
+	&& echo "Try: make benchmark-lua-only" \
 	&& echo \
 	&& false
 
@@ -110,7 +110,7 @@ refresh: clean
 	rm -rf build
 
 .PHONY: fetch fetch-lua-tools fetch-brocr fetch-cmumps
-.PHONY: test test-lua-only lua-sha cmumps bad-deps build-brocr lua-tools lua.h
+.PHONY: benchmark benchmark-lua-only lua-sha cmumps bad-deps build-brocr lua-tools lua.h
 .PHONY: clean clean-cmumps
 .SECONDARY: # Prevent deletion of targets
 .DELETE_ON_ERROR: # Prevent leaving previous targets lying around and thinking they're up to date if you don't notice a make error
