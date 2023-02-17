@@ -8,7 +8,7 @@ Invoking a Lua command from M is easy:
 
 ```lua
 $ ydb
-YDB>u $p do &mlua.lua("print('Hello World!')")
+YDB>do &mlua.lua("print('Hello World!')")
 Hello world!
 ```
 
