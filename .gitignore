@@ -6,7 +6,6 @@ t2.m
 lua-yottadb
 
 build/*
-tests/*
 deploy/*
 *.o
 *.so

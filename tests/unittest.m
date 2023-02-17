@@ -1,0 +1,64 @@
+;Test functions for MLua
+
+;Invoke run() from command line: run^unittest <commands>
+run()
+ new allTests
+ set allTests="testBasics testReadme testExample"
+ if $zcmdline'="" set allTests=$zcmdline
+ do test(allTests)
+ quit
+
+;Invoke with list of tests separated by spaces
+test(testList)
+ new command
+ set failures=0,tests=0
+ for i=1:1:$length(testList," ") do
+ .set fail=0
+ .set tests=tests+1
+ .set command=$piece(testList," ",i)
+ .w command,!
+ .do @command^unittest()
+ .set failures=failures+fail
+ if failures=0 write tests,"/",tests," tests PASSED!",!
+ else  write failures,"/",tests," tests FAILED!",!
+ quit
+
+; Wrap mlua.lua() so that it handles errors, else returns the output
+; Currently only handles up to 4 params for the sake of a shorter $select() function
+lua(lua,a1,a2,a3,a4)
+ new o,result
+ set result=$select($data(a1)=0:$&mlua.lua(lua,.o),$data(a2)=0:$&mlua.lua(lua,.o,,a1),$data(a3)=0:$&mlua.lua(lua,.o,,a1,a2),$data(a4)=0:$&mlua.lua(lua,.o,,a1,a2,a3),0=0:$&mlua.lua(lua,.o,,a1,a2,a3,a4))
+ if result write o set $ecode=",U1,"
+ quit:$quit o quit
+
+; Assert both parameters are equal
+assert(str1,str2)
+ if str1'=str2 write "  Failed: '",str1,"' <> '",str2,"'",! set fail=1
+ quit
+
+testBasics()
+ new output,result
+ ;Run some very basic invokation tests first
+ do &mlua.lua("string.lower('abc')")
+ set result=$&mlua.lua("string.lower('abc')")
+ if result'=0 zhalt 2
+ set result=$&mlua.lua("string.lower('abc')",.output)
+ if result'=0 zhalt 3
+ if output'="" write "Error in print test: ",!,output,! zhalt 3
+ set result=$&mlua.lua("print hello",.output)
+ if result=0 zhalt 4
+ if output'="Lua: [string ""mlua(code)""]:1: syntax error near 'hello'" zhalt 4
+ quit
+
+testReadme()
+ new hello,output,result
+ set hello="Hello World!"
+ do assert("table",$$lua("ydb = require 'yottadb' return type(ydb)"))
+ do assert(hello,$$lua("return ydb.get('hello')"))
+ do assert("params: 1 2",$$lua("return 'params: '..table.concat({...},' ')",1,2))
+ do assert("",$$lua("function add(a,b) return a+b end"))
+ do assert("7",$$lua(">add",3,4))
+ quit
+
+testExample()
+ quit

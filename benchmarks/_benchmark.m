@@ -4,12 +4,13 @@
 %benchmark()
  do test() quit
 
-; Wrap mlua.lua() so that it handles errors, else returns the result
-lua(lua,data)
- new out
- if $data(data)=0 if $&mlua.lua(lua,.out) w out set $ecode=",U1,"
- if $data(data)'=0 if $&mlua.lua(lua,.out,,data) w out set $ecode=",U1,"
- quit:$quit out quit
+; Wrap mlua.lua() so that it handles errors, else returns the output
+; Currently only handles up to 4 params for the sake of a shorter $select() function
+lua(lua,a1,a2,a3,a4)
+ new o,result
+ set result=$select($data(a1)=0:$&mlua.lua(lua,.o),$data(a2)=0:$&mlua.lua(lua,.o,,a1),$data(a3)=0:$&mlua.lua(lua,.o,,a1,a2),$data(a4)=0:$&mlua.lua(lua,.o,,a1,a2,a3),0=0:$&mlua.lua(lua,.o,,a1,a2,a3,a4))
+ if result write o set $ecode=",U1,"
+ quit:$quit o quit
 
 ; Detect whether lua module is installed from command line
 detectLuaModule()

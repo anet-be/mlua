@@ -157,7 +157,6 @@ allvars:
 # clean just our own mlua build
 clean: clean-lua-yottadb
 	rm -f *.o *.so try
-	rm -rf tests
 	rm -rf deploy
 	$(MAKE) -C benchmarks clean  --no-print-directory
 # clean everything we've built
@@ -171,6 +170,17 @@ refresh: clean
 # ~~~ Test
 
 LUA_TEST_BUILDS:=5.1.5 5.2.4 5.3.6 5.4.4
+
+#Ensure tests use our own build of yottadb, not the system one
+#Lua5.1 chokes on too many ending semicolons, so don't add them unless it's empty
+LUA_PATH ?= ;;
+LUA_CPATH ?= ;;
+export LUA_PATH:=./?.lua;$(LUA_PATH)
+export LUA_CPATH:=./?.so;$(LUA_CPATH)
+export LUA_INIT:=
+export MLUA_INIT:=
+export ydb_routines:=tests
+
 testall: test
 	@echo
 	@echo Testing with Lua versions $(LUA_TEST_BUILDS)
@@ -182,13 +192,13 @@ testall: test
 	$(MAKE) clean-lua-yottadb --no-print-directory  # ensure not built with any Lua version lest it confuse future builds with default Lua
 	@echo Successfully tested with Lua versions $(LUA_TEST_BUILDS)
 
+#To run specific tests, do: make test TESTS="testBasics testReadme"
 test:
-	mkdir -p tests && python3 test.py
-
-benchmarks:
+	source $(YDB_DIST)/ydb_env_set && ydb -run run^unittest $(TESTS)
+benchmark:
 	$(MAKE) -C benchmarks
-test-lua-only:
-	$(MAKE) -C benchmarks test-lua-only
+benchmark-lua-only:
+	$(MAKE) -C benchmarks benchmark-lua-only
 
 
 # ~~~ Install
@@ -229,7 +239,7 @@ $(shell mkdir -p build)			# So I don't need to do it in every target
 # (build-lua, at least, needs to be a prerequisite of anything that uses lua header files)
 .PHONY: fetch fetch-lua-yottadb fetch-lua-%
 .PHONY: build build-lua-yottadb build-lua-% build-mlua
-.PHONY: benchmarks test-lua-only
+.PHONY: benchmarks benchmark-lua-only
 .PHONY: install install-lua
 .PHONY: all test vars
 .PHONY: clean clean-luas clean-lua-% clean-lua-yottadb refresh
