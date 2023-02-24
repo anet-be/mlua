@@ -178,7 +178,8 @@ LUA_CPATH ?= ;;
 export LUA_PATH:=./?.lua;$(LUA_PATH)
 export LUA_CPATH:=./?.so;$(LUA_CPATH)
 export LUA_INIT:=
-export MLUA_INIT:=
+#used to check that MLUA_INIT works:
+export MLUA_INIT:=inittest=1
 export ydb_routines:=tests $(ydb_routines)
 
 TMPDIR ?= /tmp

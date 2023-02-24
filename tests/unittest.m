@@ -3,7 +3,7 @@
 ;Invoke run() from command line: run^unittest <commands>
 run()
  new allTests
- set allTests="testBasics testReadme testTreeheight"
+ set allTests="testBasics testReadme testTreeHeight testInit testLuaState"
  if $zcmdline'="" set allTests=$zcmdline
  do test(allTests)
  quit
@@ -53,7 +53,7 @@ testBasics()
  quit
 
 testReadme()
- new hello,output,result
+ new hello
  set hello="Hello World!"
  do assert("table",$$lua("ydb = require 'yottadb' return type(ydb)"))
  do assert(hello,$$lua("return ydb.get('hello')"))
@@ -62,7 +62,7 @@ testReadme()
  do assert("7",$$lua(">add",3,4))
  quit
 
-testTreeheight()
+testTreeHeight()
  new expected
  set ^oaks(1,"shadow")=10,^("angle")=30
  set ^oaks(2,"shadow")=13,^("angle")=30
@@ -75,4 +75,21 @@ testTreeheight()
  set expected="^oaks('1','angle')='30'$^oaks('1','height')='5.7735026918963'$^oaks('1','shadow')='10'$^oaks('2','angle')='30'$^oaks('2','height')='7.5055534994651'$^oaks('2','shadow')='13'$^oaks('3','angle')='45'$^oaks('3','height')='15.0'$^oaks('3','shadow')='15'"
  set expected=$translate(expected,"'$",$C(34)_$C(10)) ;convert ' to ", and $ to newline
  do assert(expected,$$lua("return ydb.dump('^oaks')"))
+ quit
+
+testInit()
+ ;inittest is set by MLUA_INIT for this test
+ do assert("1",$$lua("return inittest"))
+ quit
+
+testLuaState()
+ new newState,output
+ do lua("test=3")
+ do assert("3",$$lua("return test"))
+ set newState=$&mlua.open()
+ do &mlua.lua("return test",.output,newState)
+ do assert("",output)
+ do &mlua.lua("return test",.output,0)
+ do assert("3",output)
+ do &mlua.close(newState)  ;Can't really test this function except to run it, as it returns nothing
  quit
