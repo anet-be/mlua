@@ -3,7 +3,7 @@
 ;Invoke run() from command line: run^unittest <commands>
 run()
  new allTests
- set allTests="testBasics testReadme testExample"
+ set allTests="testBasics testReadme testTreeheight"
  if $zcmdline'="" set allTests=$zcmdline
  do test(allTests)
  quit
@@ -16,8 +16,10 @@ test(testList)
  .set fail=0
  .set tests=tests+1
  .set command=$piece(testList," ",i)
- .w command,!
- .do @command^unittest()
+ .do
+ ..new (command,fail)  ;delete all unnecessary locals before each test
+ ..w command,!
+ ..do @command^unittest()
  .set failures=failures+fail
  if failures=0 write tests,"/",tests," tests PASSED!",!
  else  write failures,"/",tests," tests FAILED!",!
@@ -60,5 +62,17 @@ testReadme()
  do assert("7",$$lua(">add",3,4))
  quit
 
-testExample()
+testTreeheight()
+ new expected
+ set ^oaks(1,"shadow")=10,^("angle")=30
+ set ^oaks(2,"shadow")=13,^("angle")=30
+ set ^oaks(3,"shadow")=15,^("angle")=45
+ set expected="^oaks('1','angle')='30'$^oaks('1','shadow')='10'$^oaks('2','angle')='30'$^oaks('2','shadow')='13'$^oaks('3','angle')='45'$^oaks('3','shadow')='15'"
+ set expected=$translate(expected,"'$",$C(34)_$C(10)) ;convert ' to ", and $ to newline
+ do assert(expected,$$lua("return ydb.dump('^oaks')"))
+ do lua("dofile 'tree_height.lua'")
+ do lua("show_oaks( ydb.key('^oaks') )")
+ set expected="^oaks('1','angle')='30'$^oaks('1','height')='5.7735026918963'$^oaks('1','shadow')='10'$^oaks('2','angle')='30'$^oaks('2','height')='7.5055534994651'$^oaks('2','shadow')='13'$^oaks('3','angle')='45'$^oaks('3','height')='15.0'$^oaks('3','shadow')='15'"
+ set expected=$translate(expected,"'$",$C(34)_$C(10)) ;convert ' to ", and $ to newline
+ do assert(expected,$$lua("return ydb.dump('^oaks')"))
  quit
