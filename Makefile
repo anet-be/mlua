@@ -179,8 +179,23 @@ export LUA_PATH:=./?.lua;$(LUA_PATH)
 export LUA_CPATH:=./?.so;$(LUA_CPATH)
 export LUA_INIT:=
 export MLUA_INIT:=
-export ydb_routines:=tests
+export ydb_routines:=tests $(ydb_routines)
 
+TMPDIR ?= /tmp
+tmpgld = $(TMPDIR)/mlua-test
+export ydb_gbldir=$(tmpgld).gld
+
+#To run specific tests, do: make test TESTS="testBasics testReadme"
+test:
+	rm -f $(tmpgld).gld $(tmpgld).dat
+	bash tests/createdb.sh $(YDB_DIST) $(tmpgld).dat &>/dev/null
+	source $(YDB_DIST)/ydb_env_set && $(YDB_DIST)/yottadb -run run^unittest $(TESTS)
+benchmark:
+	$(MAKE) -C benchmarks
+benchmark-lua-only:
+	$(MAKE) -C benchmarks benchmark-lua-only
+
+#This also tests lua-yottadb with all Lua versions
 testall: test
 	@echo
 	@echo Testing with Lua versions $(LUA_TEST_BUILDS)
@@ -191,14 +206,6 @@ testall: test
 	done
 	$(MAKE) clean-lua-yottadb --no-print-directory  # ensure not built with any Lua version lest it confuse future builds with default Lua
 	@echo Successfully tested with Lua versions $(LUA_TEST_BUILDS)
-
-#To run specific tests, do: make test TESTS="testBasics testReadme"
-test:
-	source $(YDB_DIST)/ydb_env_set && ydb -run run^unittest $(TESTS)
-benchmark:
-	$(MAKE) -C benchmarks
-benchmark-lua-only:
-	$(MAKE) -C benchmarks benchmark-lua-only
 
 
 # ~~~ Install
