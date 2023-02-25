@@ -181,6 +181,7 @@ export LUA_INIT:=
 #used to check that MLUA_INIT works:
 export MLUA_INIT:=inittest=1
 export ydb_routines:=tests $(ydb_routines)
+export ydb_xc_mlua:=tests/mlua.xc
 
 TMPDIR ?= /tmp
 tmpgld = $(TMPDIR)/mlua-test
@@ -188,22 +189,26 @@ export ydb_gbldir=$(tmpgld).gld
 
 #To run specific tests, do: make test TESTS="testBasics testReadme"
 test:
+	sed -e 's|.*/mlua.so$$|mlua.so|' mlua.xc >tests/mlua.xc
 	rm -f $(tmpgld).gld $(tmpgld).dat
 	bash tests/createdb.sh $(YDB_DIST) $(tmpgld).dat &>/dev/null
-	source $(YDB_DIST)/ydb_env_set && $(YDB_DIST)/yottadb -run run^unittest $(TESTS)
+	@#Note: must re-set ydb_xc_mlua below because ydb_env_set messes it up if it finds one in ydb_dist
+	source $(YDB_DIST)/ydb_env_set && ydb_xc_mlua=$(ydb_xc_mlua) $(YDB_DIST)/yottadb -run run^unittest $(TESTS)
 benchmark:
 	$(MAKE) -C benchmarks
 benchmark-lua-only:
 	$(MAKE) -C benchmarks benchmark-lua-only
 
 #This also tests lua-yottadb with all Lua versions
-testall: test
+testall:
 	@echo
-	@echo Testing with Lua versions $(LUA_TEST_BUILDS)
+	@echo Testing mlua and lua-yottadb with all Lua versions: $(LUA_TEST_BUILDS)
 	@for lua in $(LUA_TEST_BUILDS); do \
 		echo ; \
-		echo "*** Testing Lua $$lua and lua-yottadb ***" ; \
+		echo "*** Testing with Lua $$lua ***" ; \
+		$(MAKE) clean-lua-yottadb LUA_BUILD=$$lua --no-print-directory || exit 1; \
 		$(MAKE) test-lua-yottadb LUA_BUILD=$$lua --no-print-directory || exit 1; \
+		$(MAKE) LUA_BUILD=$$lua all test || exit 1; \
 	done
 	$(MAKE) clean-lua-yottadb --no-print-directory  # ensure not built with any Lua version lest it confuse future builds with default Lua
 	@echo Successfully tested with Lua versions $(LUA_TEST_BUILDS)
