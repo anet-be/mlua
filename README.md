@@ -22,7 +22,7 @@ YDB>set hello="Hello World!"
 
 YDB>do &mlua.lua("return ydb.get('hello')")
 Hello World!
-YDB>do &mlua.lua("return ydb.get('hello')",.output)  ; capture return value
+YDB>do &mlua.lua("return ydb.get('hello')",.output)  ; capture return value in `output`
 
 YDB>w output
 Hello World!
@@ -50,14 +50,14 @@ YDB>do &mlua.lua(">add",.out,,3,4) w out
 
 ### Example Lua task
 
-Let's use Lua to calculate the height of your neighbour's oak trees based on the length of their shadow and the angle of the sun. First we enter the raw data into ydb, then run Lua to fetch from ydb and calculate:
+Let's use Lua to calculate the height of your neighbour's oak trees based on the length of their shadow and the angle of the sun. First we enter the raw data into ydb, then run `tree_height.lua` to fetch from ydb and calculate:
 
 ```lua
 YDB>set ^oaks(1,"shadow")=10,^("angle")=30
 YDB>set ^oaks(2,"shadow")=13,^("angle")=30
 YDB>set ^oaks(3,"shadow")=15,^("angle")=45
 
-YDB>do &mlua.lua("return ydb.dump('^oaks')")  ;NOTE: you will need to define ydb.dump() -- see the MLUA_INIT heading below
+YDB>zwrite ^oaks  ;same as Lua command: ydb.dump('^oaks')
 ^oaks("1","angle")="30"
 ^oaks("1","shadow")="10"
 ^oaks("2","angle")="30"
@@ -93,23 +93,27 @@ end
 
 Further documentation of Lua's API for ydb is documented in ydb's [Multi-Language Programmer's Guide](https://docs.yottadb.com/MultiLangProgGuide/luaprogram.html), including locks and transactions.
 
-### MLUA_INIT and ydb.dump()
+### MLUA_INIT
 
-You probably found that `ydb.dump()` doesn't work for you. That's because I cheated: I set up MLua to define that function on initialisation. This is a handy feature. Simply set your environment variable `MLUA_INIT` to point to your the startup.lua file below (e.g. with `export MLUA_INIT=@startup.lua`) and `startup.lua` will run whenever &mlua creates a new lua_State -- it works just like Lua's standard LUA_INIT: set the variable to contain Lua code or a filepath starting with @.
+You will find that you need to do `ydb = require 'yottadb'` every time your start ydb, so that Lua can access yottadb functions. There is a way to automate this whenever MLua first starts. Simply set your MLUA_INIT environment variable with`export MLUA_INIT="ydb=require'yottadb'"`
 
-My `startup.lua` file defines ydb.dump() as follows:
+Alternatively, if you want to run a whole file of Lua commands when MLua first starts, simply point it to a file using the `@` symbol: (e.g. with `export MLUA_INIT=@startup.lua`) and `startup.lua` will run whenever &mlua creates a new lua_State. It works just like Lua's standard LUA_INIT, except operates when MLua starts instead of when Lua starts.
+
+### MLua wrapper function
+
+You may have noticed that invoking MLua to check for errors and capture output is slightly awkward and looks something like `set error=$$mlua.lua("return 1",.output) if output=1 ...` or worse. Don't you wish you could simply do `if $$lua("return 1") ...`?
+
+Well, you can actually do that if you add the following M wrapper function into your M routine. It will automatically raise errors and return the output/error. Note that it handles up to 8 optional arguments, which matches the default limit specified in mlua.xc:
 
 ```lua
-ydb = require 'yottadb'
-function ydb.dump(glvn, ...)
-  for node in ydb.nodes(tostring(glvn), ...) do
-    print(string.format('%s("%s")=%q',
-        glvn, table.concat(node, '","'), ydb.get(tostring(glvn), node)))
-  end
-end
+lua(lua,a1,a2,a3,a4,a5,a6,a7,a8)
+ new o,result
+ set result=$select($data(a1)=0:$&mlua.lua(lua,.o),$data(a2)=0:$&mlua.lua(lua,.o,,a1),$data(a3)=0:$&mlua.lua(lua,.o,,a1,a2),$data(a4)=0:$&mlua.lua(lua,.o,,a1,a2,a3),$data(a5)=0:$&mlua.lua(lua,.o,,a1,a2,a3,a4),$data(a6)=0:$&mlua.lua(lua,.o,,a1,a2,a3,a4,a5),$data(a7)=0:$&mlua.lua(lua,.o,,a1,a2,a3,a4,a5,a6),$data(a8)=0:$&mlua.lua(lua,.o,,a1,a2,a3,a4,a5,a6,a7),0=0:$&mlua.lua(lua,.o,,a1,a2,a3,a4,a5,a6,a7,a8))
+ if result write o set $ecode=",U1,MLua,"
+ quit:$quit o quit
 ```
 
-You can add your own handy code at startup. For example, to avoid having to explicitly require the ydb library every time you run ydb and mlua, set `export MLUA_INIT="ydb = require 'yottadb'"` (though you won't need to if you set ydb in your startup.lua file as above).
+There's obviously is a mild performance penalty, so don't use this if speed is paramount.
 
 ## API
 
@@ -135,11 +139,9 @@ If the luaState handle is missing or 0, mlua.lua() will run the code in the defa
 
 On error, `mlua.lua()` returns nonzero and the error message is returned in .output (if >1 parameter supplied) or sent to stdout. Note that the error value return is currently equal to -1. This may be enhanced in the future to also return positive integers equal to ERRNO or YDB errors whenever YDB functions called by Lua are the cause of the error. However, for now, all errors return -1 and any YDB error code is encoded into the error message just like any other Lua error (Lua 5.4 does not yet support coded or named errors).
 
-**`mlua.open()`** creates a new 'lua_State' which contains a new Lua context, stack, and global variables, completely independent from other lua_States (see the Lua Reference Manual on the [Application Programmer Interface](https://www.lua.org/manual/5.4/manual.html#4)). `mlua.open()` returns a luaState handle which can be passed to mlua.lua(). On error, it returns zero and the error message is returned in .output (if >0 parameters are given) or sent to stdout.
+**`mlua.open()`** creates a new 'lua_State' which contains a new Lua context, stack, and global variables, and can run independently and in parallel with other lua_States (see the Lua Reference Manual on the [Application Programmer Interface](https://www.lua.org/manual/5.4/manual.html#4)). On success, `mlua.open()` returns a luaState handle which can be passed to mlua.lua(). On error, it returns zero and the error message is returned in .output (if >0 parameters are given) or sent to stdout.
 
 **`mlua.close()`** can be called if you have finished using the lua_State, in order to free up any memory that a lua_State has allocated, first calling any garbage-collection meta-methods you have introduced in Lua. It returns nothing, and cannot produce an error.
-
-
 
 ### Signals / Interrupts
 
@@ -240,12 +242,6 @@ Some benchmarks are installed by the Makefile. Others will require manual instal
    This is an environment variable that is supposed to be set by `ydb_env_set` which is a script that is normally run when you type `ydb`. On my machine, `ydb` runs a bash script at /usr/local/lib/yottadb/r134/ydb which, in turn, sources `ydb_env_set`. That script is responsible to set the ydb_xc_mlua environment variables required for every ydb plugin in the ydb plugin directory. On my machine, for example, it sets: `ydb_xc_mlua=/usr/local/lib/yottadb/r134/plugin/mlua.xc`
 
    The fact that this is not being set for you may mean you're not running `ydb` the normal way. Perhaps you are running `yottadb` instead, without the `ydb` wrapper script. In that case you will need to create the `ydb_xc_mlua` environment variable yourself, to point to your mlua.xc file.
-
-2. Why does running the example Lua code `ydb.dump('^oaks')` do nothing?
-
-   Possibly because you have not defined the dump function, or have not done `ydb=require'yottadb'`. Check the documentation heading [MLUA_INIT and ydb.dump()](#mluainit-and-ydbdump).
-
-   To see error messages, make sure you print the output variable like so: `do &mlua.lua("your_code",.out) w out`
 
 3. When I `require 'yottadb'` why do I get `error loading module '_yottadb' from file '**/_yottadb.so':`?
 
