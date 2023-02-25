@@ -46,8 +46,6 @@ YDB>do &mlua.lua(">add",.out,,3,4) w out
 7
 ```
 
-
-
 ### Example Lua task
 
 Let's use Lua to calculate the height of your neighbour's oak trees based on the length of their shadow and the angle of the sun. First we enter the raw data into ydb, then run `tree_height.lua` to fetch from ydb and calculate:
@@ -213,11 +211,13 @@ The ydb_env_set script provided by YDB, automatically provides the environment v
 
 ## TESTING
 
-Simply type:
+To test MLua, simply type:
 
 ```shell
 make test
 ```
+
+To also test 
 
 To perform a set of speed tests, do:
 
@@ -227,7 +227,20 @@ make benchmarks
 
 Some benchmarks are installed by the Makefile. Others will require manual installation of certain Lua modules: for example `luarocks install hmac` to get a SHA library for lua. But running `make benchmarks` will note these requirements for you. There is further comment on these benchmarks in the [benchmarks/README.md](benchmarks/README.md).
 
-# Troubleshooting
+## Quirks
+
+Be aware that since different versions of Lua act differently, MLua will also act differently. This produces quirks like the following:
+
+1. Number parameters are passed as strings, and returned as strings using Lua's number conversion, e.g.:
+
+   ```lua
+   $&mlua.lua("return select(1, ...) + select(2, ...)",.output,,3,4) w output
+   ```
+
+
+   This outputs "7" for all Lua versions except Lua 5.3, which returns "7.0". This is because all numbers are passed as strings, and Lua < 5.4 converts strings to floats but Lua < 5.3 prints floats without the `.0` if possible, whereas Lua 5.3 prints floats with the `.0` And Lua >5.3 (e.g. 5.4) recognises strings '3' and '4' as integers, not floats: so its sum produces an integer as string "7".
+
+## Troubleshooting
 
 ### Trouble building MLua
 

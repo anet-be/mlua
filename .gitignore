@@ -16,6 +16,8 @@ yottadb.lua
 .vscode
 tasks
 
+tests/mlua.xc
+
 benchmarks/build
 benchmarks/*.time
 benchmarks/cstrlib.xc

@@ -11,25 +11,28 @@ run()
 ;Invoke with list of tests separated by spaces
 test(testList)
  new command
+ set luaVersion=$$lua("return _VERSION")
+ set luaVersion=$piece(luaVersion," ",2)
+ w "MLua is built using Lua ",luaVersion,!
  set failures=0,tests=0
  for i=1:1:$length(testList," ") do
  .set fail=0
  .set tests=tests+1
  .set command=$piece(testList," ",i)
  .do
- ..new (command,fail)  ;delete all unnecessary locals before each test
+ ..new (command,fail,luaVersion)  ;delete all unnecessary locals before each test
  ..w command,!
  ..do @command^unittest()
  .set failures=failures+fail
  if failures=0 write tests,"/",tests," tests PASSED!",!
- else  write failures,"/",tests," tests FAILED!",!
+ else  write failures,"/",tests," tests FAILED!",! zhalt 1
  quit
 
 ; Wrap mlua.lua() so that it handles errors; otherwise returns the output
 ; Handles up to 8 params, which matches mlua.xc
 lua(lua,a1,a2,a3,a4,a5,a6,a7,a8)
  new o,result,line
- set result=$select($data(a1)=0:$&mlua.lua(lua,.o),$data(a2)=0:$&mlua.lua(lua,.o,,a1),$data(a3)=0:$&mlua.lua(lua,.o,,a1,a2),$data(a4)=0:$&mlua.lua(lua,.o,,a1,a2,a3),$data(a5)=0:$&mlua.lua(lua,.o,,a1,a2,a3,a4),$data(a6)=0:$&mlua.lua(lua,.o,,a1,a2,a3,a4,a5),$data(a7)=0:$&mlua.lua(lua,.o,,a1,a2,a3,a4,a5,a6),$data(a8)=0:$&mlua.lua(lua,.o,,a1,a2,a3,a4,a5,a6,a7),0=0:$&mlua.lua(lua,.o,,a1,a2,a3,a4,a5,a6,a7,a8))
+ set result=$select($data(a1)=0:$&mlua.lua(lua,.o),$data(a2)=0:$&mlua.lua(lua,.o,,a1),$data(a3)=0:$&mlua.lua(lua,.o,,a1,a2),$data(a4)=0:$&mlua.lua(lua,.o,,a1,a2,a3),$data(a5)=0:$&mlua.lua(lua,.o,,a1,a2,a3,a4),$data(a6)=0:$&mlua.lua(lua,.o,,a1,a2,a3,a4,a5),$data(a7)=0:$&mlua.lua(lua,.o,,a1,a2,a3,a4,a5,a6),$data(a8)=0:$&mlua.lua(lua,.o,,a1,a2,a3,a4,a5,a6,a7),1:$&mlua.lua(lua,.o,,a1,a2,a3,a4,a5,a6,a7,a8))
  if result do
  .new line
  .set line=$stack($stack(-1)-1,"PLACE")
@@ -45,16 +48,18 @@ assert(str1,str2)
  quit
 
 testBasics()
- new output,result
+ new output,result,expected
  ;Run some very basic invokation tests first (string.lower() is used as a noop)
  do &mlua.lua("string.lower('abc')")
  do assert(0,$&mlua.lua("string.lower('abc')"))
  do assert(0,$&mlua.lua("string.lower('abc')",.output))
  do assert("",output)
  do assert(1,0'=$&mlua.lua("print hello",.output))
- do assert("Lua: [string ""mlua(code)""]:1: syntax error near 'hello'",output)
+ set expected=$select(luaVersion>5.1:"Lua: [string ""mlua(code)""]:1: syntax error near 'hello'",1:"Lua: [string ""mlua(code)""]:1: '=' expected near 'hello'")
+ do assert(expected,output)
  do assert(1,0'=$&mlua.lua("junk",.output))
- do assert("Lua: [string ""mlua(code)""]:1: syntax error near <eof>",output)
+ set expected=$select(luaVersion>5.1:"Lua: [string ""mlua(code)""]:1: syntax error near <eof>",1:"Lua: [string ""mlua(code)""]:1: '=' expected near '<eof>'")
+ do assert(expected,output)
  do assert("",$$lua(""))
  do assert(1,0'=$&mlua.lua(">",.output))
  do assert("Lua: could not find global function ''",output)
@@ -99,26 +104,30 @@ testParameters()
  quit
 
 testReadme()
- new hello
+ new hello,expected
  set hello="Hello World!"
  do assert("table",$$lua("ydb = require 'yottadb' return type(ydb)"))
  do assert(hello,$$lua("return ydb.get('hello')"))
  do assert("params: 1 2",$$lua("return 'params: '..table.concat({...},' ')",1,2))
  do assert("",$$lua("function add(a,b) return a+b end"))
- do assert("7",$$lua(">add",3,4))
+ ;Lua 5.3 adds strings representing integers to produce a float:
+ set expected=$select(luaVersion=5.3:"7.0",1:7)
+ do assert(expected,$$lua(">add",3,4))
  quit
 
 testTreeHeight()
- new expected
+ new expected,expectedHeight
  set ^oaks(1,"shadow")=10,^("angle")=30
  set ^oaks(2,"shadow")=13,^("angle")=30
  set ^oaks(3,"shadow")=15,^("angle")=45
+ ;Lua <5.3 displays height float 15.0 as 15:
  set expected="^oaks('1','angle')='30'$^oaks('1','shadow')='10'$^oaks('2','angle')='30'$^oaks('2','shadow')='13'$^oaks('3','angle')='45'$^oaks('3','shadow')='15'"
  set expected=$translate(expected,"'$",$C(34)_$C(10)) ;convert ' to ", and $ to newline
  do assert(expected,$$lua("return ydb.dump('^oaks')"))
  do lua("dofile 'tree_height.lua'")
  do lua("show_oaks( ydb.key('^oaks') )")
- set expected="^oaks('1','angle')='30'$^oaks('1','height')='5.7735026918963'$^oaks('1','shadow')='10'$^oaks('2','angle')='30'$^oaks('2','height')='7.5055534994651'$^oaks('2','shadow')='13'$^oaks('3','angle')='45'$^oaks('3','height')='15.0'$^oaks('3','shadow')='15'"
+ set expectedHeight=$select(luaVersion<5.3:"15",1:"15.0")
+ set expected="^oaks('1','angle')='30'$^oaks('1','height')='5.7735026918963'$^oaks('1','shadow')='10'$^oaks('2','angle')='30'$^oaks('2','height')='7.5055534994651'$^oaks('2','shadow')='13'$^oaks('3','angle')='45'$^oaks('3','height')='"_expectedHeight_"'$^oaks('3','shadow')='15'"
  set expected=$translate(expected,"'$",$C(34)_$C(10)) ;convert ' to ", and $ to newline
  do assert(expected,$$lua("return ydb.dump('^oaks')"))
  quit
