@@ -4,12 +4,12 @@
 %benchmark()
  do test() quit
 
-; Wrap mlua.lua() so that it handles errors, else returns the output
-; Currently only handles up to 4 params for the sake of a shorter $select() function
-lua(lua,a1,a2,a3,a4)
+; Wrap mlua.lua() so that it handles errors; otherwise returns the output
+; Handles up to 8 params, which matches mlua.xc
+lua(lua,a1,a2,a3,a4,a5,a6,a7,a8)
  new o,result
- set result=$select($data(a1)=0:$&mlua.lua(lua,.o),$data(a2)=0:$&mlua.lua(lua,.o,,a1),$data(a3)=0:$&mlua.lua(lua,.o,,a1,a2),$data(a4)=0:$&mlua.lua(lua,.o,,a1,a2,a3),0=0:$&mlua.lua(lua,.o,,a1,a2,a3,a4))
- if result write o set $ecode=",U1,"
+ set result=$select($data(a1)=0:$&mlua.lua(lua,.o),$data(a2)=0:$&mlua.lua(lua,.o,,a1),$data(a3)=0:$&mlua.lua(lua,.o,,a1,a2),$data(a4)=0:$&mlua.lua(lua,.o,,a1,a2,a3),$data(a5)=0:$&mlua.lua(lua,.o,,a1,a2,a3,a4),$data(a6)=0:$&mlua.lua(lua,.o,,a1,a2,a3,a4,a5),$data(a7)=0:$&mlua.lua(lua,.o,,a1,a2,a3,a4,a5,a6),$data(a8)=0:$&mlua.lua(lua,.o,,a1,a2,a3,a4,a5,a6,a7),0=0:$&mlua.lua(lua,.o,,a1,a2,a3,a4,a5,a6,a7,a8))
+ if result write o set $ecode=",U1,MLua,"
  quit:$quit o quit
 
 ; Detect whether lua module is installed from command line

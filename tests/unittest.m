@@ -3,7 +3,7 @@
 ;Invoke run() from command line: run^unittest <commands>
 run()
  new allTests
- set allTests="testBasics testReadme testTreeHeight testInit testLuaState"
+ set allTests="testBasics testParameters testReadme testTreeHeight testInit testLuaState"
  if $zcmdline'="" set allTests=$zcmdline
  do test(allTests)
  quit
@@ -25,31 +25,77 @@ test(testList)
  else  write failures,"/",tests," tests FAILED!",!
  quit
 
-; Wrap mlua.lua() so that it handles errors, else returns the output
-; Currently only handles up to 4 params for the sake of a shorter $select() function
-lua(lua,a1,a2,a3,a4)
- new o,result
- set result=$select($data(a1)=0:$&mlua.lua(lua,.o),$data(a2)=0:$&mlua.lua(lua,.o,,a1),$data(a3)=0:$&mlua.lua(lua,.o,,a1,a2),$data(a4)=0:$&mlua.lua(lua,.o,,a1,a2,a3),0=0:$&mlua.lua(lua,.o,,a1,a2,a3,a4))
- if result write o set $ecode=",U1,"
+; Wrap mlua.lua() so that it handles errors; otherwise returns the output
+; Handles up to 8 params, which matches mlua.xc
+lua(lua,a1,a2,a3,a4,a5,a6,a7,a8)
+ new o,result,line
+ set result=$select($data(a1)=0:$&mlua.lua(lua,.o),$data(a2)=0:$&mlua.lua(lua,.o,,a1),$data(a3)=0:$&mlua.lua(lua,.o,,a1,a2),$data(a4)=0:$&mlua.lua(lua,.o,,a1,a2,a3),$data(a5)=0:$&mlua.lua(lua,.o,,a1,a2,a3,a4),$data(a6)=0:$&mlua.lua(lua,.o,,a1,a2,a3,a4,a5),$data(a7)=0:$&mlua.lua(lua,.o,,a1,a2,a3,a4,a5,a6),$data(a8)=0:$&mlua.lua(lua,.o,,a1,a2,a3,a4,a5,a6,a7),0=0:$&mlua.lua(lua,.o,,a1,a2,a3,a4,a5,a6,a7,a8))
+ if result do
+ .new line
+ .set line=$stack($stack(-1)-1,"PLACE")
+ .write "  Failed ("_line_"): "_o,!
+ .set fail=1
  quit:$quit o quit
 
 ; Assert both parameters are equal
 assert(str1,str2)
- if str1'=str2 write "  Failed: '",str1,"' <> '",str2,"'",! set fail=1
+ new line
+ set line=$stack($stack(-1)-1,"PLACE")
+ if str1'=str2 write "  Failed ("_line_"): '",str1,"' <> '",str2,"'",! set fail=1
  quit
 
 testBasics()
  new output,result
- ;Run some very basic invokation tests first
+ ;Run some very basic invokation tests first (string.lower() is used as a noop)
  do &mlua.lua("string.lower('abc')")
- set result=$&mlua.lua("string.lower('abc')")
- if result'=0 zhalt 2
- set result=$&mlua.lua("string.lower('abc')",.output)
- if result'=0 zhalt 3
- if output'="" write "Error in print test: ",!,output,! zhalt 3
- set result=$&mlua.lua("print hello",.output)
- if result=0 zhalt 4
- if output'="Lua: [string ""mlua(code)""]:1: syntax error near 'hello'" zhalt 4
+ do assert(0,$&mlua.lua("string.lower('abc')"))
+ do assert(0,$&mlua.lua("string.lower('abc')",.output))
+ do assert("",output)
+ do assert(1,0'=$&mlua.lua("print hello",.output))
+ do assert("Lua: [string ""mlua(code)""]:1: syntax error near 'hello'",output)
+ do assert(1,0'=$&mlua.lua("junk",.output))
+ do assert("Lua: [string ""mlua(code)""]:1: syntax error near <eof>",output)
+ do assert("",$$lua(""))
+ do assert(1,0'=$&mlua.lua(">",.output))
+ do assert("Lua: could not find global function ''",output)
+ do assert(1,0'=$&mlua.lua(">unknown_func",.output))
+ do assert("Lua: could not find global function 'unknown_func'",output)
+ quit
+
+testParameters()
+ ;test mlua invokation using 1 to 9 arguments (9 should fail)
+ new output
+ do lua("function cat(...) return table.concat({...}) end")
+ do assert("",$$lua(">cat"))
+ do assert("1",$$lua(">cat",1))
+ do assert("12",$$lua(">cat",1,2))
+ do assert("123",$$lua(">cat",1,2,3))
+ do assert("1234",$$lua(">cat",1,2,3,4))
+ do assert("12345",$$lua(">cat",1,2,3,4,5))
+ do assert("123456",$$lua(">cat",1,2,3,4,5,6))
+ do assert("1234567",$$lua(">cat",1,2,3,4,5,6,7))
+ do assert("12345678",$$lua(">cat",1,2,3,4,5,6,7,8))
+ do assert("",$$lua("return table.concat({...})"))
+ do assert("1",$$lua("return table.concat({...})",1))
+ do assert("12",$$lua("return table.concat({...})",1,2))
+ do assert("123",$$lua("return table.concat({...})",1,2,3))
+ do assert("1234",$$lua("return table.concat({...})",1,2,3,4))
+ do assert("12345",$$lua("return table.concat({...})",1,2,3,4,5))
+ do assert("123456",$$lua("return table.concat({...})",1,2,3,4,5,6))
+ do assert("1234567",$$lua("return table.concat({...})",1,2,3,4,5,6,7))
+ do assert("12345678",$$lua("return table.concat({...})",1,2,3,4,5,6,7,8))
+ new $etrap,error
+ set $etrap="set error=$ecode if error["",M58,Z150374226,"" set $ecode="""""
+ set output=""
+ do
+ .do assert(0,$&mlua.lua("return table.concat({...})",.output,,1,2,3,4,5,6,7,8,9))
+ do assert(",M58,Z150374226,",error)
+ do assert("",output)
+ set error=""
+ do
+ .do assert(0,$&mlua.lua(">cat",.output,,1,2,3,4,5,6,7,8,9))
+ do assert(",M58,Z150374226,",error)
+ do assert("",output)
  quit
 
 testReadme()
