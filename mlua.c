@@ -124,7 +124,8 @@ void mlua_close(int argc, gtm_long_t luaState_handle) {
 
 
 // mlua_lua() helper to translate code string into a function
-// push function if it's a global function name (starting with '>'); otherwise compile the code
+// push function if it's a global function name (starting with '>'); allows '.' notation like, "math.abs"
+// otherwise compile the code into a function and push that
 // return 0 and the compiled function on top of the Lua stack
 // on error, return 1 with the error message string on the top of the Lua stack
 static int push_code(lua_State *L, const gtm_string_t *code_string) {
@@ -134,22 +135,33 @@ static int push_code(lua_State *L, const gtm_string_t *code_string) {
 
   // Otherwise look up function name in global table and push it instead
   lua_pushglobaltable(L);
-  lua_pushlstring(L, code_string->address+1, code_string->length-1);
-  int type = lua_rawget(L, -2); // look up -2[-1] = globals[func_name]
-  lua_remove(L, -2); // drop globals table (second-to-top place on the stack)
+  char *end, *name = code_string->address + 1;
+  int type, len, pathlen=code_string->length-1;
+  do {
+    end = memchr(name, '.', pathlen);
+    len = pathlen;
+    if (end)
+      len = end-name, pathlen -= len+1;
+    lua_pushlstring(L, name, len);
+    type = lua_rawget(L, -2); // look up -2[-1] = globals[func_name]
+    lua_remove(L, -2); // drop lookup table (second-to-top place on the stack)
+    name = end+1;
+  } while (end && type == LUA_TTABLE);
+
+  // handle not-found error
   if (type != LUA_TFUNCTION) {
     lua_pop(L, 1);  // pop bad function from the stack
     // allocate space for NUL-terminated version of code_string function name
-    char *name = malloc(code_string->length+1-1);   // new size to include '\0' but not '>'
-    if (name) {
-      memcpy(name, code_string->address+1, code_string->length-1);
-      name[code_string->length-1] = '\0'; // NUL-terminate
+    char *zname = malloc(code_string->length+1-1);   // new size to include '\0' but not '>'
+    if (zname) {
+      memcpy(zname, code_string->address+1, code_string->length-1);
+      zname[code_string->length-1] = '\0'; // NUL-terminate
     }
     if (type == LUA_TNIL)
-      lua_pushfstring(L, "could not find global function '%s'", name);
+      lua_pushfstring(L, "could not find function '%s'", zname);
     else
-      lua_pushfstring(L, "tried to invoke global '%s' as a function but it is of type: %s", name, lua_typename(L, type));
-    free(name);
+      lua_pushfstring(L, "tried to invoke '%s' as a function but it is of type: %s", zname, lua_typename(L, type));
+    free(zname);
     return 1;
   }
   return 0;
