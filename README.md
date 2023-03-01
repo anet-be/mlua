@@ -234,9 +234,10 @@ Be aware that since different versions of Lua act differently, MLua will also ac
 1. Number parameters are passed as strings, and returned as strings using Lua's number conversion, e.g.:
 
    ```lua
-   $&mlua.lua("return select(1, ...) + select(2, ...)",.output,,3,4) w output
+   YDB>do &mlua.lua("function add(a,b) return a+b end")
+   YDB>do &mlua.lua(">add",.out,,3,4) w out
+   7
    ```
-
 
    This outputs "7" for all Lua versions except Lua 5.3, which returns "7.0". This is because all numbers are passed as strings, and Lua < 5.4 converts strings to floats but Lua < 5.3 prints floats without the `.0` if possible, whereas Lua 5.3 prints floats with the `.0` And Lua >5.3 (e.g. 5.4) recognises strings '3' and '4' as integers, not floats: so its sum produces an integer as string "7".
 

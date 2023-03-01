@@ -62,9 +62,9 @@ testBasics()
  do assert(expected,output)
  do assert("",$$lua(""))
  do assert(1,0'=$&mlua.lua(">",.output))
- do assert("Lua: could not find global function ''",output)
+ do assert("Lua: could not find function ''",output)
  do assert(1,0'=$&mlua.lua(">unknown_func",.output))
- do assert("Lua: could not find global function 'unknown_func'",output)
+ do assert("Lua: could not find function 'unknown_func'",output)
  quit
 
 testParameters()
