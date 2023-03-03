@@ -21,7 +21,7 @@ gtm_int_t mlua(int argc, const gtm_string_t *code, gtm_string_t *outstr, gtm_lon
 gtm_long_t mlua_open(int argc, gtm_string_t *outstr, gtm_int_t flags);
 
 // close lua_State specified by lua_handle (which may be 0 for the global lua_State)
-void mlua_close(int argc, gtm_long_t lua_handle);
+gtm_int_t mlua_close(int argc, gtm_long_t lua_handle);
 
 // return MLUA_VERSION_NUMBER XXYYZZ where XX=major; YY=minor; ZZ=release
 gtm_int_t mlua_version_number(int _argc);

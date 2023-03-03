@@ -139,7 +139,10 @@ On error, `mlua.lua()` returns nonzero and the error message is sent to stdout o
 
 **`mlua.open()`** creates a new 'lua_State' which contains a new Lua context, stack, and global variables, and can run independently and in parallel with other lua_States (see the Lua Reference Manual on the [Application Programmer Interface](https://www.lua.org/manual/5.4/manual.html#4)). On success, `mlua.open()` returns a luaState handle which can be passed to mlua.lua(). On error, it returns zero and the error message is sent to stdout or returned in .output if supplied.
 
-**`mlua.close()`** can be called if you have finished using the lua_State, in order to free up any memory that a lua_State has allocated, first calling any garbage-collection meta-methods you have introduced in Lua. It returns nothing, and cannot produce an error.
+**`mlua.close()`** can be called if you have finished using the lua_State, in order to free up any memory that a lua_State has allocated, first calling any garbage-collection meta-methods you have introduced in Lua.
+`mlua.close(0)` will close the default Lua state, and 
+`mlua.close()` will close all Lua states.
+It returns 0 on success, -1 if the supplied handle is invalid, and -2 if the supplied handle is already closed.
 
 ### Signals / Interrupts
 

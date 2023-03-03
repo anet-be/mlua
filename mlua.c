@@ -18,10 +18,21 @@
 
 #define DEFAULT_OUTPUT stdout
 
-// For one Lua instance per process, this works, since each process gets new shared library globals.
-// But to make MUMPS support multiple simultaneous Lua instances,
-// we'd need to return this handle to the user instead of making it a global.
-lua_State *Global_lua = NULL;
+// Declare struct of header and array used to store list of open states
+typedef struct state_array_t {
+  int size;
+  int used;
+  lua_State *handles[];
+} state_array_t;
+
+struct {  // must be a copy of the above struct 
+  int size;
+  int used;
+  lua_State *handle;
+} _State_array = {1, 0, NULL};  // preallocate 1 element as most users will use just 1 state
+
+state_array_t *State_array = (state_array_t *)&_State_array;
+#define STATE_ARRAY_LUMPS 10 /* increment the state array in lumps of this many states */
 
 
 // like printf but fills gtm_string_t with up to maximum size
@@ -70,12 +81,17 @@ gtm_long_t mlua_open(int argc, gtm_string_t *output, gtm_int_t flags) {
   if (argc<2) flags=0;
   int output_size = output? output->length: 0; // ydb sets it to preallocated size
 
-  // allocate new lua state
+  // allocate new lua state and add to array of state handles
   L = luaL_newstate();
-  if (!L) {
-    outputf(output, output_size, "MLua: Could not allocate lua_State -- possible memory lack");
-    return 0;
+  if (!L)
+    return outputf(output, output_size, "MLua: Could not allocate lua_State -- possible memory lack"), 0;
+  if (State_array->used >= State_array->size) {
+    State_array = realloc(State_array, sizeof(state_array_t) + (State_array->size+STATE_ARRAY_LUMPS) * sizeof(lua_State*));
+    if (!State_array)
+      return outputf(output, output_size, "MLua: Could not allocate lua_State -- possible memory lack"), 0;
+    State_array->size += STATE_ARRAY_LUMPS;
   }
+  int handle = State_array->used+1;
 
   // Open default lua libs and add them to the new lua_State
   lua_pushcfunction(L, luaL_openlibs_ret0);
@@ -100,7 +116,7 @@ gtm_long_t mlua_open(int argc, gtm_string_t *output, gtm_int_t flags) {
     if (!error)
       error = lua_pcall(L, args, results, error_handler);
     if (error) {
-      outputf(output, output_size, "Lua: MLUA_INIT, %s", lua_tostring(L, -1));
+      outputf(output, output_size, "MLua: MLUA_INIT, %s", lua_tostring(L, -1));
       lua_pop(L, 1);  // pop error message from the stack
       return 0;
     }
@@ -108,18 +124,35 @@ gtm_long_t mlua_open(int argc, gtm_string_t *output, gtm_int_t flags) {
 
   // clear error string & return handle
   outputf(output, output_size, "");
-  return (gtm_long_t)L;
+  State_array->handles[handle] = L;
+  return handle;
 }
 
-// Close the lua_State specified by luaState_handle or close the global lua_State if no handle provided
-void mlua_close(int argc, gtm_long_t luaState_handle) {
-  if (argc < 1) luaState_handle = 0;
-  lua_State *L=(lua_State *)luaState_handle;
-  if (!L) {
-    L = Global_lua;
-    Global_lua = NULL;  // ensure we don't crash by closing the same global lua next time
+// Close the lua_State specified by luaState_handle
+// if luaState_handle is 0, close the default lua_State
+// if luaState_handle is not supplied, close all lua_States
+// return 0 on success, -1 if the supplied handle is invalid, and -2 if the supplied handle is already closed
+gtm_int_t mlua_close(int argc, gtm_long_t luaState_handle) {
+  lua_State *L;
+
+  // close all handles
+  if (argc < 1) {
+    for (gtm_long_t i=0; i<State_array->used; i++)
+      if (State_array->handles[i])
+        mlua_close(1, i);
+    return 0;
   }
+
+  // close a specific handle
+  if (luaState_handle<0 || luaState_handle>=State_array->used)
+    return -1;
+  L = State_array->handles[luaState_handle];
+  if (!L)
+    return -2;
+  State_array->handles[luaState_handle] = NULL; // ensure we don't close it twice
+
   if (L) lua_close(L);
+  return 0;
 }
 
 
@@ -129,11 +162,11 @@ void mlua_close(int argc, gtm_long_t luaState_handle) {
 // return 0 and the compiled function on top of the Lua stack
 // on error, return 1 with the error message string on the top of the Lua stack
 static int push_code(lua_State *L, const gtm_string_t *code_string) {
-  // Compile the code and push it
+  // compile the code and push it
   if (!code_string->length || code_string->address[0] != '>')
     return luaL_loadbuffer(L, code_string->address, code_string->length, "mlua(code)");
 
-  // Otherwise look up function name in global table and push it instead
+  // otherwise look up function name in global (e.g. module) table and push it instead
   lua_pushglobaltable(L);
   char *end, *name = code_string->address + 1;
   int type, len, pathlen=code_string->length-1;
@@ -192,11 +225,11 @@ static void format_result(lua_State *L, gtm_string_t *output, int output_size) {
       break;
     case LUA_TNUMBER:
     case LUA_TSTRING:
-      // Return output string, ensuring that strings containing NULs are correctly returned in full
+      // return output string, ensuring that strings containing NULs are correctly returned in full
       s = lua_tolstring(L, -1, &len);
       if (!output) {
         if (output_type == LUA_TNUMBER) {
-          // Convert any exponential notation 'e' in a number to 'E' so YDB can understand it.
+          // convert any exponential notation 'e' in a number to 'E' so YDB can understand it.
           char *e_position = memchr(s, 'e', len);
           if (e_position) {
             fwrite(s, 1, e_position-s, DEFAULT_OUTPUT);
@@ -214,7 +247,7 @@ static void format_result(lua_State *L, gtm_string_t *output, int output_size) {
       memcpy(output->address, s, len);
       output->length = len;
       if (output_type == LUA_TNUMBER) {
-        // Convert any exponential notation 'e' in a number to 'E' so YDB can understand it.
+        // convert any exponential notation 'e' in a number to 'E' so YDB can understand it.
         char *e_position = memchr(output->address, 'e', len);
         if (e_position) *e_position = 'E';
       }
@@ -227,7 +260,7 @@ done:
 }
 
 // Run Lua code
-// If luaState_handle is 0, use the global lua_State (opening it if needed),
+// If luaState_handle is 0 or not supplied, use the default lua_State (opening it if needed),
 //    but be aware that any threaded app (e.g. a C app linked into to ydb)
 //    must not call the same lua_State from multiple threads
 // return 0 on success and return a string representation of the return value in .output (if supplied) or on stdout
@@ -235,22 +268,30 @@ done:
 gtm_int_t mlua_lua(int argc, const gtm_string_t *code, gtm_string_t *output, gtm_long_t luaState_handle, ...) {
   if (argc<1) return MLUA_ERROR;  // no code to run so return error status -- but can't return output string (not supplied)
   if (argc<2 || !output || !output->address) output=NULL; // don't return output string
-  if (argc<3) luaState_handle=0; // use global lua_State
   int output_size = output? output->length: 0; // ydb sets it to preallocated size
 
-  // open global lua state if necessary
-  lua_State *L=(lua_State *)luaState_handle;
-  if (!L) L=Global_lua;
+  // check that luaState is valid
+  if (argc<3) luaState_handle=0; // use default lua_State
+  if (luaState_handle) {
+    if (luaState_handle<0 || luaState_handle>=State_array->used)
+      return outputf(output, output_size, "MLua: invalid parameter luaState (%li)", luaState_handle), MLUA_ERROR;
+    if (!State_array->handles[luaState_handle])
+      return outputf(output, output_size, "MLua: parameter luaState (%li) has been closed", luaState_handle), MLUA_ERROR;
+  }
+  lua_State *L = State_array->handles[luaState_handle];
+
+  // open default lua state if necessary
   if (!L) {
-    L = (lua_State *)mlua_open(2, output, 0);
-    if (!L) return MLUA_ERROR;  // could not open; note: output already filled by opener
-    Global_lua = L;
+    luaState_handle = mlua_open(2, output, 0);
+    L = State_array->handles[0];
+    if (!L)
+      return MLUA_ERROR;  // could not open; note: output already filled by opener
   }
 
-  // Push function if it's a function name; otherwise compile the code
+  // push function if it's a function name; otherwise compile the code
   int error = push_code(L, code);
   if (!error) {
-    // Push any optional parameters as function parameters to Lua
+    // push any optional parameters as function parameters to Lua
     int args = argc-3<0? 0: argc-3;
     if (args) {
       va_list ptr;
