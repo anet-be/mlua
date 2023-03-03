@@ -91,7 +91,7 @@ gtm_long_t mlua_open(int argc, gtm_string_t *output, gtm_int_t flags) {
       return outputf(output, output_size, "MLua: Could not allocate lua_State -- possible memory lack"), 0;
     State_array->size += STATE_ARRAY_LUMPS;
   }
-  int handle = State_array->used+1;
+  int handle = State_array->used;
 
   // Open default lua libs and add them to the new lua_State
   lua_pushcfunction(L, luaL_openlibs_ret0);
@@ -100,6 +100,7 @@ gtm_long_t mlua_open(int argc, gtm_string_t *output, gtm_int_t flags) {
   if (error) {
     outputf(output, output_size, "Lua: in init luaL_openlibs(), %s", lua_tostring(L, -1));
     lua_pop(L, 1);  // pop error message from the stack
+    lua_close(L);  // We haven't successfully opened it fully, so close it
     return 0;
   }
 
@@ -108,7 +109,6 @@ gtm_long_t mlua_open(int argc, gtm_string_t *output, gtm_int_t flags) {
   if (!(flags&MLUA_IGNORE_INIT))
     mlua_init = getenv("MLUA_INIT");
   if (mlua_init) {
-    int error;
     if (mlua_init[0] == '@')
       error = luaL_loadfile(L, mlua_init+1);
     else
@@ -118,6 +118,7 @@ gtm_long_t mlua_open(int argc, gtm_string_t *output, gtm_int_t flags) {
     if (error) {
       outputf(output, output_size, "MLua: MLUA_INIT, %s", lua_tostring(L, -1));
       lua_pop(L, 1);  // pop error message from the stack
+      lua_close(L);   // We haven't successfully opened it fully, so close it
       return 0;
     }
   }
@@ -125,6 +126,7 @@ gtm_long_t mlua_open(int argc, gtm_string_t *output, gtm_int_t flags) {
   // clear error string & return handle
   outputf(output, output_size, "");
   State_array->handles[handle] = L;
+  State_array->used = handle+1;
   return handle;
 }
 
@@ -149,9 +151,13 @@ gtm_int_t mlua_close(int argc, gtm_long_t luaState_handle) {
   L = State_array->handles[luaState_handle];
   if (!L)
     return -2;
+  lua_close(L);
   State_array->handles[luaState_handle] = NULL; // ensure we don't close it twice
 
-  if (L) lua_close(L);
+  // Mark any empy handles at the end of the array as unused.
+  // Avoids constant array increase for programs that constantly create and kill Lua states
+  while (State_array->used > 0 && !State_array->handles[State_array->used-1])
+    State_array->used--;
   return 0;
 }
 
