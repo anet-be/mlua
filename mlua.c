@@ -25,15 +25,8 @@ typedef struct state_array_t {
   lua_State *handles[];
 } state_array_t;
 
-struct {  // must be a copy of the above struct 
-  int size;
-  int used;
-  lua_State *handle;
-} _State_array = {1, 1, NULL};  // preallocate 1 element as most users will use just 1 state
-// Above has state zero (default state) marked as already used so that when someone calls mlua_open() it returns a non-zero handle
-
-state_array_t *State_array = (state_array_t *)&_State_array;
 #define STATE_ARRAY_LUMPS 10 /* increment the state array in lumps of this many states */
+state_array_t *State_array = NULL;
 
 
 // like printf but fills gtm_string_t with up to maximum size
@@ -70,22 +63,39 @@ gtm_int_t mlua_version_number(int _argc) {
   return MLUA_VERSION_NUMBER;
 }
 
+// Initialize State_array if it hasn't already been initialized
+// return 0 on allocation failure
+int init_state_array(void) {
+  if (State_array) return !0;
+  // initially, allocate space for just the default handle
+  State_array = malloc(sizeof(state_array_t) + sizeof(lua_State*));
+  if (!State_array) return 0;
+  // Mark state zero (default state) as already used so that when a user calls mlua_open()
+  // without MLUA_OPEN_DEFAULT flag, it returns a non-zero handle
+  State_array->size = State_array->used = 1;
+  State_array->handles[0] = NULL;
+  return !0;
+}
+
 // Create new Lua_State, and initialize with default lua libs
 //    and run the text in environment variable MLUA_INIT (or run the file if it starts with @)
 // Flags is an optional bitfield, whose bitmasks are defined in mlua.h as follows:
 //    MLUA_IGNORE_INIT: ignore MLUA_INIT
-// return new lua_State handle or zero if there is an error
-//    optional output returns empty on success or an error message on error (or on stdout of output missing)
+// return new lua_State handle or zero if there is an error, with error message as follows:
+//    optional output returns empty on success or an error message on error (or on stdout if output missing)
 gtm_long_t mlua_open(int argc, gtm_string_t *output, gtm_int_t flags) {
   lua_State *L;
   if (argc<1) output=NULL; // don't return error string
   if (argc<2) flags=0;
   int output_size = output? output->length: 0; // ydb sets it to preallocated size
 
+  if (!init_state_array())
+    return outputf(output, output_size, "MLua: Could not allocate memory for lua_State"), 0;
+
   // allocate new lua state and add to array of state handles
   L = luaL_newstate();
   if (!L)
-    return outputf(output, output_size, "MLua: Could not allocate lua_State -- possible memory lack"), 0;
+    return outputf(output, output_size, "MLua: Could not allocate memory for lua_State"), 0;
   int handle;
   if (flags & MLUA_OPEN_DEFAULT)
     handle = 0;
@@ -143,6 +153,8 @@ gtm_long_t mlua_open(int argc, gtm_string_t *output, gtm_int_t flags) {
 // return 0 on success, -1 if the supplied handle is invalid, and -2 if the supplied handle is already closed
 gtm_int_t mlua_close(int argc, gtm_long_t luaState_handle) {
   lua_State *L;
+
+  if (!State_array) return -1;
 
   // close all handles
   if (argc < 1) {
@@ -285,12 +297,14 @@ gtm_int_t mlua_lua(int argc, const gtm_string_t *code, gtm_string_t *output, gtm
   int output_size = output? output->length: 0; // ydb sets it to preallocated size
 
   // check that luaState is valid
+  if (!init_state_array())
+    return outputf(output, output_size, "MLua: could not allocate space for luaState array"), MLUA_ERROR;
   if (argc<3) luaState_handle=0; // use default lua_State
   if (luaState_handle) {
     if (luaState_handle<0 || luaState_handle>=State_array->used)
-      return outputf(output, output_size, "MLua: invalid parameter luaState (%li)", luaState_handle), MLUA_ERROR;
+      return outputf(output, output_size, "MLua: supplied luaState (%li) is invalid", luaState_handle), MLUA_ERROR;
     if (!State_array->handles[luaState_handle])
-      return outputf(output, output_size, "MLua: parameter luaState (%li) has been closed", luaState_handle), MLUA_ERROR;
+      return outputf(output, output_size, "MLua: supplied luaState (%li) has been closed", luaState_handle), MLUA_ERROR;
   }
   lua_State *L = State_array->handles[luaState_handle];
 
