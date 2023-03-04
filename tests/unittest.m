@@ -3,7 +3,7 @@
 ;Invoke run() from command line: run^unittest <commands>
 run()
  new allTests
- set allTests="testBasics testParameters testReadme testTreeHeight testInit testLuaState"
+ set allTests="testBasics testParameters testReadme testTreeHeight testLuaStates testInit"
  if $zcmdline'="" set allTests=$zcmdline
  do test(allTests)
  quit
@@ -48,8 +48,8 @@ assert(str1,str2)
  quit
 
 testBasics()
- new output,result,expected
  ;Run some very basic invokation tests first (string.lower() is used as a noop)
+ new output,result,expected
  do &mlua.lua("string.lower('abc')")
  do assert(0,$&mlua.lua("string.lower('abc')"))
  do assert(0,$&mlua.lua("string.lower('abc')",.output))
@@ -67,8 +67,8 @@ testBasics()
  do assert("Lua: could not find function 'unknown_func'",output)
  quit
 
+;test mlua invokation using 1 to 9 arguments (9 should fail)
 testParameters()
- ;test mlua invokation using 1 to 9 arguments (9 should fail)
  new output
  do lua("function cat(...) return table.concat({...}) end")
  do assert("",$$lua(">cat"))
@@ -103,6 +103,7 @@ testParameters()
  do assert("",output)
  quit
 
+;test the basic code from the README.md
 testReadme()
  new hello,expected
  set hello="Hello World!"
@@ -110,16 +111,19 @@ testReadme()
  do assert(hello,$$lua("return ydb.get('hello')"))
  do assert("params: 1 2",$$lua("return 'params: '..table.concat({...},' ')",1,2))
  do assert("",$$lua("function add(a,b) return a+b end"))
+
  ;Lua 5.3 adds strings representing integers to produce a float:
  set expected=$select(luaVersion=5.3:"7.0",1:7)
  do assert(expected,$$lua(">add",3,4))
  quit
 
+;test the 'practical' example code from the README.md
 testTreeHeight()
  new expected,expectedHeight
  set ^oaks(1,"shadow")=10,^("angle")=30
  set ^oaks(2,"shadow")=13,^("angle")=30
  set ^oaks(3,"shadow")=15,^("angle")=45
+
  ;Lua <5.3 displays height float 15.0 as 15:
  set expected="^oaks('1','angle')='30'$^oaks('1','shadow')='10'$^oaks('2','angle')='30'$^oaks('2','shadow')='13'$^oaks('3','angle')='45'$^oaks('3','shadow')='15'"
  set expected=$translate(expected,"'$",$C(34)_$C(10)) ;convert ' to ", and $ to newline
@@ -132,20 +136,60 @@ testTreeHeight()
  do assert(expected,$$lua("return ydb.dump('^oaks')"))
  quit
 
-testInit()
- ;inittest is set by MLUA_INIT for this test
- do assert("1",$$lua("return inittest"))
- quit
-
-testLuaState()
+;Test internal implementation details of mlua.c
+testLuaStates()
  new newState,output
+
+ ;Check that Lua handles are released in sequence
+ for i=1:1:12 do
+ .do assert(i,$&mlua.open())
+
+ ;Check that if handles are freed, the handle_array shrinks to hold only the highest used one
+ for i=5:1:12 do
+ .do assert(0,$&mlua.close(i))
+ do assert(5,$&mlua.open())
+
+ ;Check that mlua.close() closes all states
+ do assert(0,$&mlua.close())
+ do assert(1,$&mlua.open())
+
  ;Check that globals are distinct between Lua states
  do lua("test=3")
  do assert("3",$$lua("return test"))
  set newState=$&mlua.open()
  do &mlua.lua("return test",.output,newState)
  do assert("",output)
- do &mlua.lua("return test",.output,0)
- do assert("3",output)
- do &mlua.close(newState)  ;Can't really test this function except to run it, as it returns nothing
+ do assert("3",$$lua("return test"))
+
+ ;Check that mlua.close() also closes default state
+ do assert(0,$&mlua.close())
+ do assert("",$$lua("return test"))
+
+ ;Check expected failures if I supply an invalid state handle
+ do assert(0,$&mlua.close())  ;close all to start things off
+ do assert("",$$lua(""))  ;open default handle
+ do assert(1,$&mlua.open())  ;open handle 1
+ do assert(0,$&mlua.close(0))
+ do assert(-2,$&mlua.close(0))  ;handle already cosed
+ do assert(-1,$&mlua.close(100))  ;handle invalid
+ do assert(-1,$&mlua.close(2))  ; handle invalid
+
+ do assert(1,0'=$&mlua.lua("return test",.output,2))
+ do assert("MLua: supplied luaState (2) is invalid",output)
+ do assert(1,0'=$&mlua.lua("return test",.output,100))
+ do assert("MLua: supplied luaState (100) is invalid",output)
+ do assert(1,0'=$&mlua.lua("return test",.output,-1))
+ do assert("MLua: supplied luaState (-1) is invalid",output)
+ quit
+
+testInit()
+ new newState,output
+
+ ;inittest is set by MLUA_INIT for this test
+ do assert("1",$$lua("return inittest"))
+
+ ;test that MLUA_INIT does not run if we use the MLUA_IGNORE_INIT flag
+ set newState=$&mlua.open(,1)
+ do &mlua.lua("return inittest",.output,newState)
+ do assert("",output)
  quit
