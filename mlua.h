@@ -5,7 +5,7 @@
 
 #include "gtmxc_types.h"
 
-// Flags that may be passed to the optional flags parameter of mlua_open()
+// Bitfield of flags that may be passed to the optional flags parameter of mlua_open()
 #define MLUA_IGNORE_INIT 1  /* Do not process code pointed to by MLUA_INIT environment variable */
 #define MLUA_OPEN_DEFAULT 2  /* Used internally to specify opening the default Lua state */
 

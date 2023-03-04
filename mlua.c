@@ -103,7 +103,7 @@ gtm_long_t mlua_open(int argc, gtm_string_t *output, gtm_int_t flags) {
     if (State_array->used >= State_array->size) {
       State_array = realloc(State_array, sizeof(state_array_t) + (State_array->size+STATE_ARRAY_LUMPS) * sizeof(lua_State*));
       if (!State_array)
-        return outputf(output, output_size, "MLua: Could not allocate lua_State -- possible memory lack"), 0;
+        return outputf(output, output_size, "MLua: Could not allocate memory for lua_State"), 0;
       State_array->size += STATE_ARRAY_LUMPS;
     }
     handle = State_array->used;
