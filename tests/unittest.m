@@ -139,6 +139,7 @@ testInit()
 
 testLuaState()
  new newState,output
+ ;Check that globals are distinct between Lua states
  do lua("test=3")
  do assert("3",$$lua("return test"))
  set newState=$&mlua.open()

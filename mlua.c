@@ -29,7 +29,8 @@ struct {  // must be a copy of the above struct
   int size;
   int used;
   lua_State *handle;
-} _State_array = {1, 0, NULL};  // preallocate 1 element as most users will use just 1 state
+} _State_array = {1, 1, NULL};  // preallocate 1 element as most users will use just 1 state
+// Above has state zero (default state) marked as already used so that when someone calls mlua_open() it returns a non-zero handle
 
 state_array_t *State_array = (state_array_t *)&_State_array;
 #define STATE_ARRAY_LUMPS 10 /* increment the state array in lumps of this many states */
@@ -85,13 +86,18 @@ gtm_long_t mlua_open(int argc, gtm_string_t *output, gtm_int_t flags) {
   L = luaL_newstate();
   if (!L)
     return outputf(output, output_size, "MLua: Could not allocate lua_State -- possible memory lack"), 0;
-  if (State_array->used >= State_array->size) {
-    State_array = realloc(State_array, sizeof(state_array_t) + (State_array->size+STATE_ARRAY_LUMPS) * sizeof(lua_State*));
-    if (!State_array)
-      return outputf(output, output_size, "MLua: Could not allocate lua_State -- possible memory lack"), 0;
-    State_array->size += STATE_ARRAY_LUMPS;
+  int handle;
+  if (flags & MLUA_OPEN_DEFAULT)
+    handle = 0;
+  else {
+    if (State_array->used >= State_array->size) {
+      State_array = realloc(State_array, sizeof(state_array_t) + (State_array->size+STATE_ARRAY_LUMPS) * sizeof(lua_State*));
+      if (!State_array)
+        return outputf(output, output_size, "MLua: Could not allocate lua_State -- possible memory lack"), 0;
+      State_array->size += STATE_ARRAY_LUMPS;
+    }
+    handle = State_array->used;
   }
-  int handle = State_array->used;
 
   // Open default lua libs and add them to the new lua_State
   lua_pushcfunction(L, luaL_openlibs_ret0);
@@ -126,7 +132,8 @@ gtm_long_t mlua_open(int argc, gtm_string_t *output, gtm_int_t flags) {
   // clear error string & return handle
   outputf(output, output_size, "");
   State_array->handles[handle] = L;
-  State_array->used = handle+1;
+  if (handle)
+    State_array->used = handle+1;
   return handle;
 }
 
@@ -156,7 +163,8 @@ gtm_int_t mlua_close(int argc, gtm_long_t luaState_handle) {
 
   // Mark any empy handles at the end of the array as unused.
   // Avoids constant array increase for programs that constantly create and kill Lua states
-  while (State_array->used > 0 && !State_array->handles[State_array->used-1])
+  // Leave state zero (default state) marked as 'used' because when someone calls mlua_open() it must always return a non-zero handle
+  while (State_array->used > 1 && !State_array->handles[State_array->used-1])
     State_array->used--;
   return 0;
 }
@@ -288,7 +296,7 @@ gtm_int_t mlua_lua(int argc, const gtm_string_t *code, gtm_string_t *output, gtm
 
   // open default lua state if necessary
   if (!L) {
-    luaState_handle = mlua_open(2, output, 0);
+    luaState_handle = mlua_open(2, output, MLUA_OPEN_DEFAULT);
     L = State_array->handles[0];
     if (!L)
       return MLUA_ERROR;  // could not open; note: output already filled by opener
