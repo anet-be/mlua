@@ -90,7 +90,7 @@ gtm_long_t mlua_open(int argc, gtm_string_t *output, gtm_int_t flags) {
   int output_size = output? output->length: 0; // ydb sets it to preallocated size
 
   if (!init_state_array())
-    return outputf(output, output_size, "MLua: Could not allocate memory for lua_State"), 0;
+    return outputf(output, output_size, "MLua: Could not allocate memory for luaState array"), 0;
 
   // allocate new lua state and add to array of state handles
   L = luaL_newstate();
@@ -216,11 +216,12 @@ static int push_code(lua_State *L, const gtm_string_t *code_string) {
       memcpy(zname, code_string->address+1, code_string->length-1);
       zname[code_string->length-1] = '\0'; // NUL-terminate
     }
+    char *zname2 = zname? zname: "?";
     if (type == LUA_TNIL)
-      lua_pushfstring(L, "could not find function '%s'", zname);
+      lua_pushfstring(L, "could not find function '%s'", zname2);
     else
-      lua_pushfstring(L, "tried to invoke '%s' as a function but it is of type: %s", zname, lua_typename(L, type));
-    free(zname);
+      lua_pushfstring(L, "tried to invoke '%s' as a function but it is of type: %s", zname2, lua_typename(L, type));
+    if (zname) free(zname);
     return 1;
   }
   return 0;
