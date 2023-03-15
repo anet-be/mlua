@@ -1,10 +1,14 @@
 // Lua for MUMPS
 
+// Make sure signal.h imports the stuff we need
+#define _POSIX_C_SOURCE 1
+
 #include <stdio.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+#include <signal.h>
 
 #include "gtmxc_types.h"
 #include "lua.h"
@@ -18,11 +22,23 @@
 
 #define DEFAULT_OUTPUT stdout
 
+// If lua-yottadb ever changes to call ydb with threading calls, change the following to pthread_sigmask() and compile+link with -pthread option
+#define SIGPROCMASK(how,set,oldset) sigprocmask((how),(set),(oldset))
+// List of signals that YDB can trigger which we don't interrupting MLua slow IO reads/writes
+#define BLOCKED_SIGNALS SIGALRM, SIGCHLD, SIGTSTP, SIGTTIN, SIGTTOU, SIGCONT, SIGUSR1, SIGUSR2
+
+// define the struct of State array  elements
+typedef struct mlua_state_t {
+  lua_State *luastate;
+  gtm_int_t flags;  // flags passed in to mlua_open()
+  sigset_t sigmask;  // mlua_open() sets this to the YDB signals we must block while Lua code runs
+} mlua_state_t;
+
 // Declare struct of header and array used to store list of open states
 typedef struct state_array_t {
   int size;
   int used;
-  lua_State *handles[];
+  mlua_state_t states[];
 } state_array_t;
 
 #define STATE_ARRAY_LUMPS 10 /* increment the state array in lumps of this many states */
@@ -67,22 +83,37 @@ gtm_int_t mlua_version_number(int _argc) {
 // return 0 on allocation failure
 int init_state_array(void) {
   if (State_array) return !0;
-  // initially, allocate space for just the default handle
-  State_array = malloc(sizeof(state_array_t) + sizeof(lua_State*));
+  // initially, allocate space for just the default mlua_state
+  State_array = malloc(sizeof(state_array_t) + sizeof(mlua_state_t));
   if (!State_array) return 0;
   // Mark state zero (default state) as already used so that when a user calls mlua_open()
   // without MLUA_OPEN_DEFAULT flag, it returns a non-zero handle
   State_array->size = State_array->used = 1;
-  State_array->handles[0] = NULL;
+  State_array->states[0].luastate = NULL;
   return !0;
 }
+
+// Initialize Sigmask global to mask signals that YDB uses
+// return 0 on failure due to an invalid signal in the list of blocked signals
+int init_sigmask(sigset_t *sigmask) {
+  int signals[] = {BLOCKED_SIGNALS};
+  sigemptyset(sigmask);
+  int *signal = signals;
+  while (signal < signals + sizeof(signals)/sizeof(int))
+    if (sigaddset(sigmask, *signal++))
+      return 0;
+  return !0;
+}
+
 
 // Create new Lua_State, and initialize with default lua libs
 //    and run the text in environment variable MLUA_INIT (or run the file if it starts with @)
 // Flags is an optional bitfield, whose bitmasks are defined in mlua.h as follows:
 //    MLUA_IGNORE_INIT: ignore MLUA_INIT
+//    MLUA_ALLOW_SIGNALS: Let signals interrupt Lua (likely causing EINTR errors during 'slow' I/O)
 // return new lua_State handle or zero if there is an error, with error message as follows:
 //    optional output returns empty on success or an error message on error (or on stdout if output missing)
+// Note: if internal-use MLUA_OPEN_DEFAULT flag is supplied, always return -1 on success or zero on error
 gtm_long_t mlua_open(int argc, gtm_string_t *output, gtm_int_t flags) {
   lua_State *L;
   if (argc<1) output=NULL; // don't return error string
@@ -90,24 +121,31 @@ gtm_long_t mlua_open(int argc, gtm_string_t *output, gtm_int_t flags) {
   int output_size = output? output->length: 0; // ydb sets it to preallocated size
 
   if (!init_state_array())
-    return outputf(output, output_size, "MLua: Could not allocate memory for luaState array"), 0;
-
-  // allocate new lua state and add to array of state handles
-  L = luaL_newstate();
-  if (!L)
     return outputf(output, output_size, "MLua: Could not allocate memory for lua_State"), 0;
+  sigset_t sigmask;
+  if (!init_sigmask(&sigmask))
+    return outputf(output, output_size, "MLua: Set of YDB signals to mask includes an invalid signal"), 0;
+
+  // allocate new lua state and add to state array
   int handle;
   if (flags & MLUA_OPEN_DEFAULT)
     handle = 0;
   else {
     if (State_array->used >= State_array->size) {
-      State_array = realloc(State_array, sizeof(state_array_t) + (State_array->size+STATE_ARRAY_LUMPS) * sizeof(lua_State*));
+      State_array = realloc(State_array, sizeof(state_array_t) + (State_array->size+STATE_ARRAY_LUMPS) * sizeof(mlua_state_t));
       if (!State_array)
         return outputf(output, output_size, "MLua: Could not allocate memory for lua_State"), 0;
       State_array->size += STATE_ARRAY_LUMPS;
     }
     handle = State_array->used;
   }
+  L = luaL_newstate();
+  if (!L)
+    return outputf(output, output_size, "MLua: Could not allocate memory for lua_State"), 0;
+  // After this point any error return must call lua_close(L)
+
+  State_array->states[handle].flags = flags;
+  State_array->states[handle].sigmask = sigmask;
 
   // Open default lua libs and add them to the new lua_State
   lua_pushcfunction(L, luaL_openlibs_ret0);
@@ -141,9 +179,11 @@ gtm_long_t mlua_open(int argc, gtm_string_t *output, gtm_int_t flags) {
 
   // clear error string & return handle
   outputf(output, output_size, "");
-  State_array->handles[handle] = L;
-  if (handle)
+  State_array->states[handle].luastate = L;
+  if (handle)  // avoid lowering State_array->used when we open handle 0 after another handle is open
     State_array->used = handle+1;
+  if (flags & MLUA_OPEN_DEFAULT)
+    return -1; // special return value so that errors can be detected in the case when handle is known to be 0
   return handle;
 }
 
@@ -154,12 +194,15 @@ gtm_long_t mlua_open(int argc, gtm_string_t *output, gtm_int_t flags) {
 gtm_int_t mlua_close(int argc, gtm_long_t luaState_handle) {
   lua_State *L;
 
-  if (!State_array) return -1;
+  if (!State_array) {
+    if (argc < 1) return 0; // close_all is fine if nothing is open yet
+    else return -1;  // closing a specific handle is not fine if nothing is open yet
+  }
 
   // close all handles
   if (argc < 1) {
     for (gtm_long_t i=0; i<State_array->used; i++)
-      if (State_array->handles[i])
+      if (State_array->states[i].luastate)
         mlua_close(1, i);
     return 0;
   }
@@ -167,16 +210,16 @@ gtm_int_t mlua_close(int argc, gtm_long_t luaState_handle) {
   // close a specific handle
   if (luaState_handle<0 || luaState_handle>=State_array->used)
     return -1;
-  L = State_array->handles[luaState_handle];
+  L = State_array->states[luaState_handle].luastate;
   if (!L)
     return -2;
   lua_close(L);
-  State_array->handles[luaState_handle] = NULL; // ensure we don't close it twice
+  State_array->states[luaState_handle].luastate = NULL; // ensure we don't close it twice
 
   // Mark any empy handles at the end of the array as unused.
   // Avoids constant array increase for programs that constantly create and kill Lua states
   // Leave state zero (default state) marked as 'used' because when someone calls mlua_open() it must always return a non-zero handle
-  while (State_array->used > 1 && !State_array->handles[State_array->used-1])
+  while (State_array->used > 1 && !State_array->states[State_array->used-1].luastate)
     State_array->used--;
   return 0;
 }
@@ -207,7 +250,7 @@ static int push_code(lua_State *L, const gtm_string_t *code_string) {
     name = end+1;
   } while (end && type == LUA_TTABLE);
 
-  // handle not-found error
+  // handle any global not-found error
   if (type != LUA_TFUNCTION) {
     lua_pop(L, 1);  // pop bad function from the stack
     // allocate space for NUL-terminated version of code_string function name
@@ -304,17 +347,19 @@ gtm_int_t mlua_lua(int argc, const gtm_string_t *code, gtm_string_t *output, gtm
   if (luaState_handle) {
     if (luaState_handle<0 || luaState_handle>=State_array->used)
       return outputf(output, output_size, "MLua: supplied luaState (%li) is invalid", luaState_handle), MLUA_ERROR;
-    if (!State_array->handles[luaState_handle])
+    if (!State_array->states[luaState_handle].luastate)
       return outputf(output, output_size, "MLua: supplied luaState (%li) has been closed", luaState_handle), MLUA_ERROR;
   }
-  lua_State *L = State_array->handles[luaState_handle];
+  mlua_state_t *mlua_state = &State_array->states[luaState_handle];
+  lua_State *L = mlua_state->luastate;
 
   // open default lua state if necessary
   if (!L) {
-    luaState_handle = mlua_open(2, output, MLUA_OPEN_DEFAULT);
-    L = State_array->handles[0];
-    if (!L)
+    // luaState_handle already equals 0 (default) in this case, but we haven't yet opened the default state
+    if (!mlua_open(2, output, MLUA_OPEN_DEFAULT))
       return MLUA_ERROR;  // could not open; note: output already filled by opener
+    mlua_state = &State_array->states[0];  // recalculate mlua_state because mlua_open may have realloc()'ed it
+    L = mlua_state->luastate;
   }
 
   // push function if it's a function name; otherwise compile the code
@@ -332,7 +377,14 @@ gtm_int_t mlua_lua(int argc, const gtm_string_t *code, gtm_string_t *output, gtm
       va_end(ptr);
     }
     int results=1, error_handler=0;
-    error = lua_pcall(L, args, results, error_handler);
+    if (mlua_state->flags & MLUA_ALLOW_SIGNALS)
+      error = lua_pcall(L, args, results, error_handler);
+    else {
+      sigset_t oldmask;
+      SIGPROCMASK(SIG_BLOCK, &mlua_state->sigmask, &oldmask);
+      error = lua_pcall(L, args, results, error_handler);
+      SIGPROCMASK(SIG_SETMASK, &oldmask, NULL);
+    }
   }
   if (error) {
     outputf(output, output_size, "Lua: %s", lua_tostring(L, -1));

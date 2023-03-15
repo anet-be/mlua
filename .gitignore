@@ -3,6 +3,9 @@ tree_height.lua
 t.lua
 t.m
 t2.m
+t.c
+t
+testerror.txt
 lua-yottadb
 
 build/*
