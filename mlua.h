@@ -6,8 +6,9 @@
 #include "gtmxc_types.h"
 
 // Bitfield of flags that may be passed to the optional flags parameter of mlua_open()
-#define MLUA_IGNORE_INIT 1  /* Do not process code pointed to by MLUA_INIT environment variable */
-#define MLUA_OPEN_DEFAULT 2  /* Used internally to specify opening the default Lua state */
+#define MLUA_IGNORE_INIT   0x01  /* Do not process code pointed to by MLUA_INIT environment variable */
+#define MLUA_OPEN_DEFAULT  0x02  /* Used internally to specify opening the default Lua state */
+#define MLUA_ALLOW_SIGNALS 0x04  /* Let signals interrupt Lua (likely EINTR errors during 'slow' I/O) */
 
 // use a value that is not used by YDB or ERRNO in case we decide to return those errors at some later point.
 #define MLUA_ERROR -1
