@@ -3,7 +3,7 @@
 ;Invoke run() from command line: run^unittest <commands>
 run()
  new allTests
- set allTests="testBasics testParameters testReadme testTreeHeight testLuaStates testInit"
+ set allTests="testBasics testParameters testReadme testTreeHeight testLuaStates testInit testSignals"
  if $zcmdline'="" set allTests=$zcmdline
  do test(allTests)
  quit
@@ -12,8 +12,10 @@ run()
 test(testList)
  new command
  set luaVersion=$$lua("return _VERSION")
+ do assertNotFatal("",luaVersion,"Lua returned nothing!")
  set luaVersion=$piece(luaVersion," ",2)
  w "MLua is built using Lua ",luaVersion,!
+ do assert(1,luaVersion>=5.1,"luaVersion is <5.1")
  set failures=0,tests=0
  for i=1:1:$length(testList," ") do
  .set fail=0
@@ -22,6 +24,8 @@ test(testList)
  .do
  ..new (command,fail,luaVersion)  ;delete all unnecessary locals before each test
  ..w command,!
+ ..do assert(0,$&mlua.close())  ;close all Lua states to make sure every test starts fresh
+ ..do lua("ydb = require 'yottadb'")
  ..do @command^unittest()
  .set failures=failures+fail
  if failures=0 write tests,"/",tests," tests PASSED!",!
@@ -41,29 +45,65 @@ lua(lua,a1,a2,a3,a4,a5,a6,a7,a8)
  quit:$quit o quit
 
 ; Assert both parameters are equal
-assert(str1,str2)
+assert(str1,str2,msg)
  new line
+ set msg=$select($data(msg)=0:"",1:msg_"; ")
  set line=$stack($stack(-1)-1,"PLACE")
- if str1'=str2 write "  Failed ("_line_"): '",str1,"' <> '",str2,"'",! set fail=1
+ if str1'=str2 write "  Failed ("_line_"): "_msg_"'",str1,"' <> '",str2,"'",! set fail=1
  quit
+
+; Assert both parameters are notequal
+assertNot(str1,str2,msg)
+ new line
+ set msg=$select($data(msg)=0:"",1:msg_"; ")
+ set line=$stack($stack(-1)-1,"PLACE")
+ if str1=str2 write "  Failed ("_line_"): "_msg_"'",str1,"' = '",str2,"'",! set fail=1
+ quit
+
+; Assert both parameters are equal
+assertFatal(str1,str2,msg)
+ new line
+ set msg=$select($data(msg)=0:"",1:msg_"; ")
+ set line=$stack($stack(-1)-1,"PLACE")
+ if str1'=str2 write "  Failed ("_line_"): "_msg_"'",str1,"' <> '",str2,"'",! set fail=1
+ if str1'=str2 zhalt 2
+ quit
+
+; Assert both parameters are notequal
+assertNotFatal(str1,str2,msg)
+ new line
+ set msg=$select($data(msg)=0:"",1:msg_"; ")
+ set line=$stack($stack(-1)-1,"PLACE")
+ if str1=str2 write "  Failed ("_line_"): "_msg_"'",str1,"' = '",str2,"'",! set fail=1
+ if str1=str2 zhalt 2
+ quit
+
+
+;---- Actual tests from here on ----
 
 testBasics()
  ;Run some very basic invokation tests first (string.lower() is used as a noop)
  new output,result,expected
+ ;test output-less command works in a fresh lua_State -- in the past this has been a known failure point
+ do assert(0,$&mlua.close())
+ do &mlua.lua("string.lower('abc')")
+ do assert(0,$&mlua.close())
+ do assert(0,$&mlua.lua("string.lower('abc')"))
+ ; same tests in an already-open lua_State
  do &mlua.lua("string.lower('abc')")
  do assert(0,$&mlua.lua("string.lower('abc')"))
  do assert(0,$&mlua.lua("string.lower('abc')",.output))
  do assert("",output)
- do assert(1,0'=$&mlua.lua("print hello",.output))
+ do assertNot(0,$&mlua.lua("print hello",.output))
  set expected=$select(luaVersion>5.1:"Lua: [string ""mlua(code)""]:1: syntax error near 'hello'",1:"Lua: [string ""mlua(code)""]:1: '=' expected near 'hello'")
  do assert(expected,output)
- do assert(1,0'=$&mlua.lua("junk",.output))
+ do assertNot(0,$&mlua.lua("junk",.output))
  set expected=$select(luaVersion>5.1:"Lua: [string ""mlua(code)""]:1: syntax error near <eof>",1:"Lua: [string ""mlua(code)""]:1: '=' expected near '<eof>'")
  do assert(expected,output)
  do assert("",$$lua(""))
- do assert(1,0'=$&mlua.lua(">",.output))
+ do assertNot(0,$&mlua.lua(">",.output))
  do assert("Lua: could not find function ''",output)
- do assert(1,0'=$&mlua.lua(">unknown_func",.output))
+ do assertNot(0,$&mlua.lua(">unknown_func",.output))
  do assert("Lua: could not find function 'unknown_func'",output)
  quit
 
@@ -174,11 +214,11 @@ testLuaStates()
  do assert(-1,$&mlua.close(100))  ;handle invalid
  do assert(-1,$&mlua.close(2))  ; handle invalid
 
- do assert(1,0'=$&mlua.lua("return test",.output,2))
+ do assertNot(0,$&mlua.lua("return test",.output,2))
  do assert("MLua: supplied luaState (2) is invalid",output)
- do assert(1,0'=$&mlua.lua("return test",.output,100))
+ do assertNot(0,$&mlua.lua("return test",.output,100))
  do assert("MLua: supplied luaState (100) is invalid",output)
- do assert(1,0'=$&mlua.lua("return test",.output,-1))
+ do assertNot(0,$&mlua.lua("return test",.output,-1))
  do assert("MLua: supplied luaState (-1) is invalid",output)
  quit
 
@@ -192,4 +232,29 @@ testInit()
  set newState=$&mlua.open(,1)
  do &mlua.lua("return inittest",.output,newState)
  do assert("",output)
+ quit
+
+;Test whether signals can interrupt Lua code
+testSignals()
+ new pid,cmd,captureFunc,handle,output,MluaAllowSignals
+ set pid=$$lua("local f=assert(io.open('/proc/self/stat'), 'Cannot open /proc/self/stat') local pid=assert(f:read('n'), 'Cannot read PID from /proc/self/stat') f:close() return pid")
+ set captureFunc="function capture(cmd) local f=assert(io.popen(cmd)) local s=assert(f:read('*a')) f:close() return s end"
+ set cmd="kill -s CONT "_pid_" && sleep 0.1 && echo -n Complete 2>/dev/null"
+
+ ;first send ourselves a signal while Lua is doing slow IO
+ ;make sure Lua returns early with MLUA_ALLOW_SIGNALS flag
+ set MluaAllowSignals=4  ;from mlua.h
+ set handle=$&mlua.open(.output,MluaAllowSignals)
+ do assert(0,$&mlua.lua(captureFunc,.output,handle))
+ do assert("",output)
+ do assertNot(0,$&mlua.lua("return capture('"_cmd_"')",.output,handle))
+ do assert("Lua: [string ""mlua(code)""]:1: Interrupted system call",output)
+
+ ;now do the same in a new lua state with MLUA_ALLOW_SIGNALS flag
+ ;it should complete the whole task properly
+ set handle=$&mlua.open(.output)
+ do assert(0,$&mlua.lua(captureFunc,.output,0))
+ do assert("",output)
+ do assert(0,$&mlua.lua("return capture('"_cmd_"')",.output,0))
+ do assert("Complete",output)
  quit
