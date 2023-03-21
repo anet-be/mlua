@@ -93,7 +93,7 @@ int init_state_array(void) {
   return !0;
 }
 
-// Initialize Sigmask global to mask signals that YDB uses
+// Initialize sigmask to mask signals that YDB uses
 // return 0 on failure due to an invalid signal in the list of blocked signals
 int init_sigmask(sigset_t *sigmask) {
   int signals[] = {BLOCKED_SIGNALS};

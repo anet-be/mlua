@@ -167,7 +167,7 @@ In addition, your Lua code must not use any of these [YDB Signals](https://docs.
 
 If you really do need to use these signals, you would have to understand how YDB initialises and uses them and make your handler call its handler, as appropriate. This is not recommended.
 
-If you do not wish MLua to block YDB signals, you can disable it by adding the MLUA_ALLOW_SIGNALS flag (0x04) when you open the lua_State using mlua.open(). However, your application will need to handle EINTR errors that occur from any systems calls performed in Lua or Lua modules that operate on blocking IO and can therefore return EINTR.
+If you do not wish MLua to block YDB signals, you can disable it by adding the MLUA_ALLOW_SIGNALS flag (0x04) when you open the lua_State using mlua.open(). However, your application will need to handle EINTR errors that occur from any systems calls performed in Lua or Lua modules that operate on blocking IO and can therefore return EINTR. These errors appear in Lua as the error message `Interrupted system call`.
 
 Note that MLua does **not** block SIGINT or fatal signals: SIGQUIT, SIGABRT, SIGBUS, SIGFPE, SIGILL, SIGIOT, SIGSEGV, SIGTERM, and SIGTRAP. Instead MLua lets the YDB handlers of these terminate the program as appropriate.
 
