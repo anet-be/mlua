@@ -237,7 +237,7 @@ testInit()
 ;Test whether signals can interrupt Lua code
 testSignals()
  new pid,cmd,captureFunc,handle,output,MluaAllowSignals
- set pid=$$lua("local f=assert(io.open('/proc/self/stat'), 'Cannot open /proc/self/stat') local pid=assert(f:read('n'), 'Cannot read PID from /proc/self/stat') f:close() return pid")
+ set pid=$$lua("local f=assert(io.open('/proc/self/stat'), 'Cannot open /proc/self/stat') local pid=assert(f:read('*n'), 'Cannot read PID from /proc/self/stat') f:close() return pid")
  set captureFunc="function capture(cmd) local f=assert(io.popen(cmd)) local s=assert(f:read('*a')) f:close() return s end"
  set cmd="kill -s CONT "_pid_" && sleep 0.1 && echo -n Complete 2>/dev/null"
 
