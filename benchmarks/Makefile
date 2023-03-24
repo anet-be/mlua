@@ -11,7 +11,12 @@ CC := gcc
 # first target is the default
 benchmark: lua-tools
 	$(MAKE) cmumps build-brocr --no-print-directory || $(MAKE) bad-deps -s
+	@echo
+	@echo 'set h=$$&mlua.open(.o,4) for i=1:1:1000000 do &mlua.lua(">math.abs",.o,0,-1)' | time -f "MLua function call without blocking: %e us" ydb >/dev/null
+	@echo 'set h=$$&mlua.open(.o,4) for i=1:1:1000000 do &mlua.lua(">math.abs",.o,h,-1)' | time -f "MLua function call with blocking: %e us" ydb >/dev/null
+	@echo
 	./benchmark.py
+
 # alternative target for users who do not permission to access cmumps or qtechng -- though it won't have anything to compare against
 benchmark-lua-only: lua-tools
 	./benchmark.py

@@ -1,7 +1,7 @@
 // Lua for MUMPS
 
 // Make sure signal.h imports the stuff we need
-#define _POSIX_C_SOURCE 1
+#define _POSIX_C_SOURCE 200809L
 
 #include <stdio.h>
 #include <stddef.h>
@@ -25,13 +25,15 @@
 // If lua-yottadb ever changes to call ydb with threading calls, change the following to pthread_sigmask() and compile+link with -pthread option
 #define SIGPROCMASK(how,set,oldset) sigprocmask((how),(set),(oldset))
 // List of signals that YDB can trigger which we don't interrupting MLua slow IO reads/writes
-#define BLOCKED_SIGNALS SIGALRM, SIGCHLD, SIGTSTP, SIGTTIN, SIGTTOU, SIGCONT, SIGUSR1, SIGUSR2
+// Note that SIGALRM is handled separately so is not listed here
+#define BLOCKED_SIGNALS SIGCHLD, SIGTSTP, SIGTTIN, SIGTTOU, SIGCONT, SIGUSR1, SIGUSR2
 
 // define the struct of State array  elements
 typedef struct mlua_state_t {
   lua_State *luastate;
   gtm_int_t flags;  // flags passed in to mlua_open()
   sigset_t sigmask;  // mlua_open() sets this to the YDB signals we must block while Lua code runs
+  struct sigaction sigalrm_action;  // flags used to set sigaction on SIGALRM - store to save one OS call every invokation of Lua
 } mlua_state_t;
 
 // Declare struct of header and array used to store list of open states
@@ -95,13 +97,15 @@ int init_state_array(void) {
 
 // Initialize sigmask to mask signals that YDB uses
 // return 0 on failure due to an invalid signal in the list of blocked signals
-int init_sigmask(sigset_t *sigmask) {
+int init_sigmask(sigset_t *sigmask, struct sigaction *action) {
   int signals[] = {BLOCKED_SIGNALS};
   sigemptyset(sigmask);
   int *signal = signals;
   while (signal < signals + sizeof(signals)/sizeof(int))
     if (sigaddset(sigmask, *signal++))
       return 0;
+  if (sigaction(SIGALRM, NULL, action))
+    return 0;
   return !0;
 }
 
@@ -110,7 +114,7 @@ int init_sigmask(sigset_t *sigmask) {
 //    and run the text in environment variable MLUA_INIT (or run the file if it starts with @)
 // Flags is an optional bitfield, whose bitmasks are defined in mlua.h as follows:
 //    MLUA_IGNORE_INIT: ignore MLUA_INIT
-//    MLUA_ALLOW_SIGNALS: Let signals interrupt Lua (likely causing EINTR errors during 'slow' I/O)
+//    MLUA_ΒLOCK_SIGNALS: Prevent signals from interrupting Lua (causing EINTR errors during 'slow' I/O)
 // return new lua_State handle or zero if there is an error, with error message as follows:
 //    optional output returns empty on success or an error message on error (or on stdout if output missing)
 // Note: if internal-use MLUA_OPEN_DEFAULT flag is supplied, always return -1 on success or zero on error
@@ -123,7 +127,8 @@ gtm_long_t mlua_open(int argc, gtm_string_t *output, gtm_int_t flags) {
   if (!init_state_array())
     return outputf(output, output_size, "MLua: Could not allocate memory for lua_State"), 0;
   sigset_t sigmask;
-  if (!init_sigmask(&sigmask))
+  struct sigaction sigalrm_action;
+  if (!init_sigmask(&sigmask, &sigalrm_action))
     return outputf(output, output_size, "MLua: Set of YDB signals to mask includes an invalid signal"), 0;
 
   // allocate new lua state and add to state array
@@ -146,6 +151,7 @@ gtm_long_t mlua_open(int argc, gtm_string_t *output, gtm_int_t flags) {
 
   State_array->states[handle].flags = flags;
   State_array->states[handle].sigmask = sigmask;
+  State_array->states[handle].sigalrm_action = sigalrm_action;
 
   // Open default lua libs and add them to the new lua_State
   lua_pushcfunction(L, luaL_openlibs_ret0);
@@ -377,14 +383,20 @@ gtm_int_t mlua_lua(int argc, const gtm_string_t *code, gtm_string_t *output, gtm
       va_end(ptr);
     }
     int results=1, error_handler=0;
-    if (mlua_state->flags & MLUA_ALLOW_SIGNALS)
-      error = lua_pcall(L, args, results, error_handler);
-    else {
+    if (mlua_state->flags & MLUA_BLOCK_SIGNALS) {
       sigset_t oldmask;
+      // two sigprocmask calls (set+unset) take 873 instructions (3018 cycles, 609ns on my i7) - tested with perf
+      // two sigaction calls (set+unset) take 925 instructions (3000 cycles, 685ns on my i7) - tested with perf
       SIGPROCMASK(SIG_BLOCK, &mlua_state->sigmask, &oldmask);
+      mlua_state->sigalrm_action.sa_flags |= SA_RESTART;
+      sigaction(SIGALRM, &mlua_state->sigalrm_action, NULL);
       error = lua_pcall(L, args, results, error_handler);
+      mlua_state->sigalrm_action.sa_flags &= ~SA_RESTART;
+      sigaction(SIGALRM, &mlua_state->sigalrm_action, NULL);
       SIGPROCMASK(SIG_SETMASK, &oldmask, NULL);
-    }
+    } else
+      error = lua_pcall(L, args, results, error_handler);
+
   }
   if (error) {
     outputf(output, output_size, "Lua: %s", lua_tostring(L, -1));

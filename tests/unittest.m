@@ -236,25 +236,32 @@ testInit()
 
 ;Test whether signals can interrupt Lua code
 testSignals()
- new pid,cmd,captureFunc,handle,output,MluaAllowSignals
+ new pid,cmd1,cmd2,signal,captureFunc,handle,output,MluaBlockSignals
  set pid=$$lua("local f=assert(io.open('/proc/self/stat'), 'Cannot open /proc/self/stat') local pid=assert(f:read('*n'), 'Cannot read PID from /proc/self/stat') f:close() return pid")
  set captureFunc="function capture(cmd) local f=assert(io.popen(cmd)) local s=assert(f:read('*a')) f:close() return s end"
- set cmd="kill -s CONT "_pid_" && sleep 0.1 && echo -n Complete 2>/dev/null"
+ set cmd1="kill -s CONT "_pid_" && sleep 0.1 && echo -n Complete 2>/dev/null"
+ set cmd2="kill -s ALRM "_pid_" && sleep 0.1 && echo -n Complete 2>/dev/null"
 
  ;first send ourselves a signal while Lua is doing slow IO
- ;make sure Lua returns early with MLUA_ALLOW_SIGNALS flag
- set MluaAllowSignals=4  ;from mlua.h
- set handle=$&mlua.open(.output,MluaAllowSignals)
+ ;make sure Lua returns early with MLUA_BLOCK_SIGNALS flag
+ set handle=0
  do assert(0,$&mlua.lua(captureFunc,.output,handle))
  do assert("",output)
- do assertNot(0,$&mlua.lua("return capture('"_cmd_"')",.output,handle))
+ do assertNot(0,$&mlua.lua("return capture('"_cmd1_"')",.output,handle))
+ do assert("Lua: [string ""mlua(code)""]:1: Interrupted system call",output)
+ ;do the same again with SIGALRM
+ do assertNot(0,$&mlua.lua("return capture('"_cmd2_"')",.output,handle))
  do assert("Lua: [string ""mlua(code)""]:1: Interrupted system call",output)
 
- ;now do the same in a new lua state with MLUA_ALLOW_SIGNALS flag
+ ;now do the same in a new lua state with MLUA_BLOCK_SIGNALS flag
  ;it should complete the whole task properly
- set handle=$&mlua.open(.output)
- do assert(0,$&mlua.lua(captureFunc,.output,0))
+ set MluaBlockSignals=4  ;from mlua.h
+ set handle=$&mlua.open(.output,MluaBlockSignals)
+ do assert(0,$&mlua.lua(captureFunc,.output,handle))
  do assert("",output)
- do assert(0,$&mlua.lua("return capture('"_cmd_"')",.output,0))
+ do assert(0,$&mlua.lua("return capture('"_cmd1_"')",.output,handle))
+ do assert("Complete",output)
+ ;do the same again with SIGALRM
+ do assert(0,$&mlua.lua("return capture('"_cmd2_"')",.output,handle))
  do assert("Complete",output)
  quit
