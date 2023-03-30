@@ -30,7 +30,7 @@ gtm_int_t mlua_version_number(int _argc);
 
 
 // Define version: Maj,Min,Release
-#define MLUA_VERSION 0,1,1
+#define MLUA_VERSION 0,2,1
 #define MLUA_VERSION_STRING   WRAP_PARAMETER(CREATE_VERSION_STRING, MLUA_VERSION)   /* "X.Y.Z" format */
 #define MLUA_VERSION_NUMBER   WRAP_PARAMETER(CREATE_VERSION_NUMBER, MLUA_VERSION)   /* XXYYZZ numeric format */
 
