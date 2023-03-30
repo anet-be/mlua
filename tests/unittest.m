@@ -243,7 +243,7 @@ testSignals()
  set cmd2="kill -s ALRM "_pid_" && sleep 0.1 && echo -n Complete 2>/dev/null"
 
  ;first send ourselves a signal while Lua is doing slow IO
- ;make sure Lua returns early with MLUA_BLOCK_SIGNALS flag
+ ;make sure Lua returns early without MLUA_BLOCK_SIGNALS flag
  set handle=0
  do assert(0,$&mlua.lua(captureFunc,.output,handle))
  do assert("",output)
@@ -253,7 +253,7 @@ testSignals()
  do assertNot(0,$&mlua.lua("return capture('"_cmd2_"')",.output,handle))
  do assert("Lua: [string ""mlua(code)""]:1: Interrupted system call",output)
 
- ;now do the same in a new lua state with MLUA_BLOCK_SIGNALS flag
+ ;now do the same in a new lua state with MLUA_BLOCK_SIGNALS flag set
  ;it should complete the whole task properly
  set MluaBlockSignals=4  ;from mlua.h
  set handle=$&mlua.open(.output,MluaBlockSignals)

@@ -9,6 +9,7 @@ YDB_INSTALL := $(YDB_DIST)/plugin
 CC := gcc
 
 # first target is the default
+benchmarks: benchmark
 benchmark: lua-tools
 	$(MAKE) cmumps build-brocr --no-print-directory || $(MAKE) bad-deps -s
 	@echo
