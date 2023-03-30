@@ -194,6 +194,7 @@ test:
 	bash tests/createdb.sh $(YDB_DIST) $(tmpgld).dat &>/dev/null
 	@#Note: must re-set ydb_xc_mlua below because ydb_env_set messes it up if it finds one in ydb_dist
 	source $(YDB_DIST)/ydb_env_set && ydb_xc_mlua=$(ydb_xc_mlua) $(YDB_DIST)/yottadb -run run^unittest $(TESTS)
+benchmarks: benchmark
 benchmark:
 	$(MAKE) -C benchmarks
 benchmark-lua-only:

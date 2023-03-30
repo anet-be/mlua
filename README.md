@@ -225,39 +225,19 @@ Some benchmarks are installed by the Makefile. Others will require manual instal
 
 ## Technical details
 
+### Thread Safety
+
+Lua co-routines, are perfectly safe to use with YDB, since they are cooperative rather than preemptive. However, MLua does not currently support multi-threaded applications – which would require [these lua-yottadb changes](https://github.com/anet-be/lua-yottadb#thread-safety).
+
 ### Signals & EINTR errors
 
 Your MLua code must treat signals with respect. If your Lua code doesn't use slow or blocking IO like user input or pipes then you should have nothing to worry about. But if you're getting `Interrupted system call` (EINTR) errors from Lua, then you need to read this section.
 
-YDB uses signals heavily (especially SIGALRM: see below). This mean that YDB signal/timer handlers may called while running Lua code. Normally this doesn't matter, but if your Lua code is doing blocking IO operations (using read/write/open/close), then these operations may return the EINTR error. Lua C code itself is not written to retry this error condition, so your software will fail unnecessarily unless you handle them.
+YDB uses signals heavily (especially SIGALRM: see below). This means that YDB signal/timer handlers may be called while running Lua code. Normally this doesn't matter, but if your Lua code is doing blocking IO operations (using read/write/open/close), then these operations may return the EINTR error. Lua C code itself is not written to retry this error condition, so your software will fail unnecessarily unless you handle them. If you really *do* wish to handle EINTR errors yourself, you should also call YDB API function [ydb_eintr_handler()](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-eintr-handler-ydb-eintr-handler-t) whenever you get an EINTR error.
 
-MLua offers a mechanism to resolve this automatically by blocking YDB signals until your Lua function is finished. To use it, simply open your lua_State using `mlua_open()` with the `MLUA_BLOCK_SIGNALS` flag (0x04). Be aware that if you use signal blocking with long-running Lua code, the database will not run timers until your Lua code returns (though it can flush database buffers: see the note on SIGALRM below). Be aware that setting up signal blocking is slow, so using `MLUA_BLOCK_SIGNALS` will approximately double the mlua.lua() calling overhead (adding about 0.7 microseconds, compared to 0.9 microseconds when running a pre-compiled function like `>math.abs` without blocking).
+MLua offers a mechanism to resolve this automatically by blocking YDB signals until your Lua function is finished. To use it, simply open your lua_State using `mlua_open()` with the `MLUA_BLOCK_SIGNALS` flag (0x04). Be aware that if you use signal blocking with long-running Lua code, the database will not run timers until your Lua code returns (though it can flush database buffers: see the note on SIGALRM below). Be aware that setting up signal blocking is slow, so using `MLUA_BLOCK_SIGNALS` will more than double the mlua.lua() calling overhead (adding about 1.4 microseconds, compared to 0.9 microseconds when running a pre-compiled function like `>math.abs` without blocking – see `make benchmarks`).
 
-Your Lua code must not use any of the following [YDB Signals](https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#signals), which are the same ones that `MLUA_BLOCK_SIGNALS` blocks:
-
-- SIGALRM: used for [M Timeouts](https://docs.yottadb.com/ProgrammersGuide/langfeat.html#timeouts), [$ZTIMEOUT](https://docs.yottadb.com/ProgrammersGuide/isv.html#ztimeout), [$ZMAXTPTIME](https://docs.yottadb.com/ProgrammersGuide/isv.html#zmaxtptime), device timeouts, [ydb_start_timer()](https://docs.yottadb.com/MultiLangProgGuide/cprogram.html#ydb-timer-start-ydb-timer-start-t) API, and a buffer flush timer roughly once every second.
-  - Note that although most signals are completely blocked (using [sigprocmask](https://man7.org/linux/man-pages/man2/sigprocmask.2.html)), MLua doesn't actually block SIGALRM; instead it temporarily sets its SA_RESTART flag (using [sigaction](https://man7.org/linux/man-pages/man2/sigaction.2.html)) so that the OS automatically restarts IO calls that were interrupted by SIGALRM. The benefit of this over blocking is that the YDB SIGALRM handler does actually run, allowing it still to flush the database or IO as necessary without your M code having to call the M command `VIEW "FLUSH"`.
-- SIGCHLD: wakes up YDB when a child process terminates.
-- SIGTSTP, SIGTTIN, SIGTTOU, SIGCONT: YDB handles these to defer suspension until an opportune time.
-- SIGUSR1: used for [$ZINTERRUPT](https://docs.yottadb.com/ProgrammersGuide/isv.html#zinterrupt)
-- SIGUSR2: used only by GT.CM servers, the Go-ydb wrapper, or env variable `ydb_treat_sigusr2_like_sigusr1`.
-
-If you really do need to use these signals, you would have to understand how YDB initialises and uses them and make your handler call its handler, as appropriate. This is not recommended.
-
-Note that MLua does **not** block SIGINT or fatal signals: SIGQUIT, SIGABRT, SIGBUS, SIGFPE, SIGILL, SIGIOT, SIGSEGV, SIGTERM, and SIGTRAP. Instead MLua lets the YDB handlers of these terminate the program as appropriate.
-
-You may use any other signals, but first read [Limitations on External Programs](https://docs.yottadb.com/ProgrammersGuide/extrout.html#limitations-on-the-external-program) and [YDB Signals](https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#signals). Be aware that:
-
-- You will probably want to initialise your signal handler using the SA_RESTART flag so that the OS automatically retries long-running IO calls (cf. [system calls that can return EINTR](https://man7.org/linux/man-pages/man7/signal.7.html#:~:text=interruption of system calls and library functions by signal handlers)). You may also wish to know that the only system calls that Lua 5.4 uses which can return EINTR are (f)open/close/read/write. These are only used by Lua's `io` library. However, third-party libraries may use other system calls (e.g. posix and LuaSocket libraries).
-- If you need an OS timer, you cannot use `setitimer()` since it can only trigger SIGALRM, which YDB uses. Instead use `timer_create()` to trigger your own signal.
-
-If you need more detail on signals, here is a discussion of MLua's design [decision to block YDB signals](https://github.com/anet-be/mlua/discussions/8). It also describes why SA_RESTART is not a suitable solution for YDB itself when running M code.
-
-### Thread Safety
-
-Lua co-routines, are perfectly safe to use with YDB, since they are cooperative rather than preemptive.
-
-However, multi-threaded applications must access YDB using [special C API functions](https://docs.yottadb.com/MultiLangProgGuide/programmingnotes.html#threads). MLua uses lua-yottadb which does not use this special API, and so MLua must not be used in multi-threaded applications unless the application designer ensures that only one of the threads accesses the database. If there is keen demand, it shouldn't be too difficult to upgrade lua-yottadb to use the thread-safe function calls, making MLua thread-safe. (Lua still requires, though, that each thread running Lua does so in a separate lua_State).
+For further details, refer to [lua-yottadb notes on specific signals](https://github.com/anet-be/lua-yottadb#specific-signals), which also apply to MLua.
 
 ### Quirks
 

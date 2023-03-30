@@ -115,6 +115,7 @@ int init_sigmask(sigset_t *sigmask, struct sigaction *action) {
 // Flags is an optional bitfield, whose bitmasks are defined in mlua.h as follows:
 //    MLUA_IGNORE_INIT: ignore MLUA_INIT
 //    MLUA_ΒLOCK_SIGNALS: Prevent signals from interrupting Lua (causing EINTR errors during 'slow' I/O)
+//    see README for performance overhead of this
 // return new lua_State handle or zero if there is an error, with error message as follows:
 //    optional output returns empty on success or an error message on error (or on stdout if output missing)
 // Note: if internal-use MLUA_OPEN_DEFAULT flag is supplied, always return -1 on success or zero on error
