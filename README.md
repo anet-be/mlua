@@ -160,7 +160,6 @@ MLua also uses [Lua](https://www.lua.org/) (copyright © 1994–2021 Lua.org, PU
 ## Installation
 
 Prerequisites: linux, gcc, yottadb
-To run the benchmarks you also need: luarocks and python
 
 1. Install YottaDB per the [Quick Start](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#quick-start) guide instructions or from [source](https://gitlab.com/YottaDB/DB/YDB).
 2. git clone `<mlua repository>` mlua && cd mlua
@@ -213,12 +212,10 @@ To test MLua, simply type:
 make test
 ```
 
-To also test 
-
 To perform a set of speed tests, do:
 
 ```shell
-make benchmarks
+make benchmark
 ```
 
 Some benchmarks are installed by the Makefile. Others will require manual installation of certain Lua modules: for example `luarocks install hmac` to get a SHA library for lua. But running `make benchmarks` will note these requirements for you. There is further comment on these benchmarks in the [benchmarks/README.md](benchmarks/README.md).
