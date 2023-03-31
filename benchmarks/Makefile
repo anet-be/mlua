@@ -8,21 +8,31 @@ YDB_DIST := $(shell pkg-config --variable=prefix yottadb)
 YDB_INSTALL := $(YDB_DIST)/plugin
 CC := gcc
 
-# first target is the default
-benchmarks: benchmark
-benchmark: lua-tools
-	$(MAKE) cmumps build-brocr --no-print-directory || $(MAKE) bad-deps -s
-	@echo
-	@echo 'set h=$$&mlua.open(.o,4) for i=1:1:1000000 do &mlua.lua(">math.abs",.o,0,-1)' | time -f "MLua function call without blocking: %e us" ydb >/dev/null
-	@echo 'set h=$$&mlua.open(.o,4) for i=1:1:1000000 do &mlua.lua(">math.abs",.o,h,-1)' | time -f "MLua function call with blocking: %e us" ydb >/dev/null
-	@echo
-	./benchmark.py
+#Ensure tests use our own build of yottadb, not the system one
+#Lua5.1 chokes on too many ending semicolons, so don't add them unless it's empty
+LUA_PATH ?= ;;
+LUA_CPATH ?= ;;
+export LUA_PATH:=../?.lua;./?.lua;$(LUA_PATH)
+export LUA_CPATH:=../?.lua;./?.so;$(LUA_CPATH)
+export LUA_INIT:=
+export MLUA_INIT:=
+export ydb_xc_cstrlib:=./cstrlib.xc
+export ydb_routines:=.
+export ydb_xc_mlua:=mlua.xc
 
+all: fetch benchmark
+benchmarks: benchmark
+benchmark: mlua.xc lua-tools build-benchmark-extras
+	yottadb -run benchmark
 # alternative target for users who do not permission to access cmumps or qtechng -- though it won't have anything to compare against
-benchmark-lua-only: lua-tools
-	./benchmark.py
+benchmark-lua-only: mlua.xc lua-tools
+	yottadb -run benchmark
+build-benchmark-extras:
+	$(MAKE) cmumps build-brocr --no-print-directory || $(MAKE) bad-deps -s
 fetch:
 	$(MAKE) fetch-lua-tools fetch-brocr fetch-cmumps  --no-print-directory || $(MAKE) bad-deps -s
+mlua.xc:
+	sed "1 s|.*/mlua.so|../mlua.so|" ../mlua.xc >mlua.xc
 
 
 # nicely handle cmumps or qtechng dependencies not available
@@ -116,7 +126,8 @@ refresh: clean
 	rm -rf build
 
 .PHONY: fetch fetch-lua-tools fetch-brocr fetch-cmumps
-.PHONY: benchmark benchmark-lua-only lua-sha cmumps bad-deps build-brocr lua-tools lua.h
+.PHONY: all build-benchmark benchmarks benchmark benchmark.m benchmark.py benchmark-lua-only
+.PHONY: lua-sha cmumps bad-deps build-brocr lua-tools lua.h
 .PHONY: clean clean-cmumps
 .SECONDARY: # Prevent deletion of targets
 .DELETE_ON_ERROR: # Prevent leaving previous targets lying around and thinking they're up to date if you don't notice a make error

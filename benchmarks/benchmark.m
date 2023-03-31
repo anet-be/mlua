@@ -1,8 +1,68 @@
 ; Benchmark comparison of SHA2 via M, Lua, and C
+; Dependencies:
+; - Lua module cputime (see `make lua-cputime`) to get process time
+; - /proc/uptime to get real time
+
 
 ; Default function
-%benchmark()
- do test() quit
+benchmark()
+ do init()
+ do benchmarkSignals()
+ do benchmarkStringProcesses()
+ quit
+
+; Create random 1MB string from Lua so we can have a reproducable one (fixed seed)
+; Lua is faster, anyway (see notes in randomMB.lua)
+init(usertime)
+ do lua(" ydb=require'yottadb' rand=require'randomMB' ")
+ do lua(" function isfile(name) local f=io.open(name) return f ~= nil and io.close(f)  end ")
+ do lua(" cputime=require'cputime' ")
+ ; time measurement options below: uptime() takes 2us but nanoseconds() takes 2000us! So use uptime().
+ do lua(" proc_uptime=assert(io.open('/proc/uptime'), 'Can\'t open /proc/uptime') ")
+ do lua(" function uptime()  proc_uptime:seek('set') proc_uptime:flush() return proc_uptime:read('*n') end ")
+ do lua(" function nanoseconds()  local f=io.popen('date +%S.%N') local t=f:read('*n') f:close() return t end ")
+ do lua(" function start() realtime=uptime()  start_child=cputime.get_children_process_cputime() start_time=cputime.get_process_cputime()  end ")
+ do lua(" function stop() local cputime=cputime.get_process_cputime()-start_time+cputime.get_children_process_cputime()-start_child realtime=uptime()-realtime  return cputime  end ")
+ set randomMB=$$lua(" return rand.randomMB() ")
+ quit
+
+benchmarkSignals()
+ new iterations,elapsed,realtime
+ set iterations=1000000
+ set elapsed=$$callingOverhead(iterations,0,.realtime)
+ w "MLua function call without blocking: ",$justify($fn(elapsed,",",1),11),"us (process CPU time) ",$justify($fn(realtime,",",1),11),"us (real time)",!
+ set elapsed=$$callingOverhead(iterations,$&mlua.open(.o,4),.realtime)
+ w "MLua function call with    blocking: ",$justify($fn(elapsed,",",1),11),"us (process CPU time) ",$justify($fn(realtime,",",1),11),"us (real time)",!
+ quit
+
+benchmarkStringProcesses()
+ if '$$lua("return isfile('brocr')") w "Skipping uninstalled shellSHA. To install, run: make",!
+ else  do benchmarkSizes("shellSHA",200,200,1)
+ do benchmarkSizes("pureluaSHA",10000,2000,2)
+ if '$$lua("return pcall(require,'hmac')") w "Skipping uninstalled luaCLibSHA. To install, run: luarocks install hmac",!
+ else  do benchmarkSizes("luaCLibSHA",200000,100000,100)
+ if '$$lua("return isfile('cstrlib.so')") w "Skipping uninstalled cmumpsSHA. To install, run: make",!
+ else  do benchmarkSizes("cmumpsSHA",100000,100000,100)
+ do benchmarkSizes("luaStripCharsPrm",200000,100000,100)
+ do benchmarkSizes("luaStripCharsDb",100000,50000,100)
+ if '$$lua("return isfile('cstrlib.so')") w "Skipping uninstalled cmumpsStripChars. To install, run: make",!
+ else  do benchmarkSizes("cmumpsStripChars",1000000,10000,10)
+ do benchmarkSizes("mStripChars",100000,20000,100)
+ quit
+
+; Benchmark `testName` using various string sizes
+benchmarkSizes(testName,iterations10,iterations1k,iterations1m)
+ new us10,us1k,us1m
+ new rt10,rt1k,rt1m
+ w testName,?19
+ set us10=$$test(testName,10,iterations10,.rt10)
+ w $justify($fn(us10,",",1),11),"us "
+ set us1k=$$test(testName,1000,iterations1k,.rt1k)
+ w $justify($fn(us1k,",",1),11),"us "
+ set us1m=$$test(testName,1000000,iterations1m,.rt1m)
+ w $justify($fn(us1m,",",1),11),"us   (process CPU time)",!
+ w ?19,$justify($fn(rt10,",",1),11),"us ",$justify($fn(rt1k,",",1),11),"us ",$justify($fn(rt1m,",",1),11),"us   (real time)",!
+ quit
 
 ; Wrap mlua.lua() so that it handles errors; otherwise returns the output
 ; Handles up to 8 params, which matches mlua.xc
@@ -12,36 +72,25 @@ lua(lua,a1,a2,a3,a4,a5,a6,a7,a8)
  if result write o set $ecode=",U1,MLua,"
  quit:$quit o quit
 
-; Detect whether lua module is installed from command line
-detectLuaModule()
- new module
- set module=$piece($zcmdline," ",1)
- write $$lua("return pcall(require, '"_module_"')")
- quit
-
-; Get random 1MB string from Lua so we can have a reproducable one (fixed seed)
-; Lua is faster, anyway (see notes in randomMB.lua)
-init()
- do lua(" ydb=require'yottadb' rand=require'randomMB' ")
- do lua(" cputime=require'cputime' ")
- do lua(" function start() start_child=cputime.get_children_process_cputime() start_time=cputime.get_process_cputime() end ")
- do lua(" function stop() r1=cputime.get_process_cputime()-start_time r2=cputime.get_children_process_cputime()-start_child return r1+r2 end ")
- set randomMB=$$lua(" return rand.randomMB() ")
- quit
-
-; Invoke test() from command line: test^%benchmark <command> <iterations> <hashSize>
-test()
- new command,size,iterations,msg
- set command=$piece($zcmdline," ",1)
- set iterations=$piece($zcmdline," ",2)
- set size=$piece($zcmdline," ",3)
-
- do init()
+; Invoke test `command` with random string of `size`
+test(command,size,iterations,realtime)
+ new msg,elapsed
  set msg=$extract(randomMB,1,size)
- set elapsed=$$@command^%benchmark(iterations)
- if $data(result)>0 if result'="" w result,!
- write elapsed
- quit
+ kill result
+ set elapsed=$$@command^benchmark(iterations)/iterations
+ set realtime=$$lua("return realtime")*1000000/iterations
+ quit elapsed
+
+; ~~~ Signal calling overhead benchmarks
+
+callingOverhead(iterations,luaHandle,realtime)
+ new elapsed
+ do lua(">start")
+ for i=1:1:iterations do
+ . do &mlua.lua(">math.abs",.o,luaHandle,-1)
+ set elapsed=$$lua(">stop")/iterations
+ set realtime=$$lua("return realtime")*1000000/iterations
+ quit elapsed
 
 
 ; ~~~ strStrip benchmarks

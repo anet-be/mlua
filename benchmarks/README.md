@@ -3,7 +3,7 @@
 From the benchmarks directory, run:
 
 ```shell
-make
+make fetch benchmark
 ```
 
 Requirements for some benchmarks are installed by the Makefile. Others will require manual installation of certain Lua modules: for example `luarocks install hmac` to get a SHA library for lua. But running `make` will note these requirements for you.

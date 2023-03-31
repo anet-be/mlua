@@ -28,3 +28,5 @@ benchmarks/sha2.lua
 benchmarks/.qtechng
 benchmarks/brocr
 benchmarks/brocr.go
+benchmarks/mlua.xc
+benchmarks/zadloop*
