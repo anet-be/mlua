@@ -30,9 +30,9 @@ benchmarkSignals()
  new iterations,elapsed,realtime
  set iterations=1000000
  set elapsed=$$callingOverhead(iterations,0,.realtime)
- w "MLua function call without blocking: ",$justify($fn(elapsed,",",1),11),"us (process CPU time) ",$justify($fn(realtime,",",1),11),"us (real time)",!
+ w "MLua calling overhead without signal blocking: ",$justify($fn(elapsed,",",1),7),"us (process CPU time) ",$justify($fn(realtime,",",1),7),"us (real time)",!
  set elapsed=$$callingOverhead(iterations,$&mlua.open(.o,4),.realtime)
- w "MLua function call with    blocking: ",$justify($fn(elapsed,",",1),11),"us (process CPU time) ",$justify($fn(realtime,",",1),11),"us (real time)",!
+ w "MLua calling overhead with    signal blocking: ",$justify($fn(elapsed,",",1),7),"us (process CPU time) ",$justify($fn(realtime,",",1),7),"us (real time)",!
  quit
 
 benchmarkStringProcesses()
