@@ -191,9 +191,9 @@ export ydb_gbldir=$(tmpgld).gld
 test:
 	sed -e 's|.*/mlua.so$$|mlua.so|' mlua.xc >tests/mlua.xc
 	rm -f $(tmpgld).gld $(tmpgld).dat
-	bash tests/createdb.sh $(YDB_DIST) $(tmpgld).dat &>/dev/null
+	bash tests/createdb.sh $(YDB_DIST) $(tmpgld).dat >/dev/null 2>&1
 	@#Note: must re-set ydb_xc_mlua below because ydb_env_set messes it up if it finds one in ydb_dist
-	source $(YDB_DIST)/ydb_env_set && ydb_xc_mlua=$(ydb_xc_mlua) $(YDB_DIST)/yottadb -run run^unittest $(TESTS)
+	. $(YDB_DIST)/ydb_env_set && ydb_xc_mlua=$(ydb_xc_mlua) $(YDB_DIST)/yottadb -run run^unittest $(TESTS)
 benchmarks: benchmark
 benchmark:
 	$(MAKE) -C benchmarks

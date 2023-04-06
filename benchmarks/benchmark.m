@@ -11,9 +11,9 @@ benchmark()
  do benchmarkStringProcesses()
  quit
 
-; Create random 1MB string from Lua so we can have a reproducable one (fixed seed)
-; Lua is faster, anyway (see notes in randomMB.lua)
 init(usertime)
+ ; Create random 1MB string from Lua so we can have a reproducable one (fixed seed)
+ ; Lua is faster, anyway (see notes in randomMB.lua)
  do lua(" ydb=require'yottadb' rand=require'randomMB' ")
  do lua(" function isfile(name) local f=io.open(name) return f ~= nil and io.close(f)  end ")
  do lua(" cputime=require'cputime' ")
@@ -26,72 +26,100 @@ init(usertime)
  set randomMB=$$lua(" return rand.randomMB() ")
  quit
 
+assert(str1,str2,msg)
+ ; Assert both parameters are equal
+ new line
+ set msg=$select($data(msg)=0:"",1:msg_"; ")
+ set line=$stack($stack(-1)-1,"PLACE")
+ if str1'=str2 write "  Failed ("_line_"): "_msg_"'",str1,"' <> '",str2,"'",! zmessage -1
+ quit
+
+; ~~~ Signal calling overhead benchmarks
+
 benchmarkSignals()
  new iterations,elapsed,realtime
+ w !
  set iterations=1000000
- set elapsed=$$callingOverhead(iterations,0,.realtime)
+ set elapsed=$$iterateCall(iterations,0,.realtime)
  w "MLua calling overhead without signal blocking: ",$justify($fn(elapsed,",",1),7),"us (process CPU time) ",$justify($fn(realtime,",",1),7),"us (real time)",!
- set elapsed=$$callingOverhead(iterations,$&mlua.open(.o,4),.realtime)
+ set elapsed=$$iterateCall(iterations,$&mlua.open(.o,4),.realtime)
  w "MLua calling overhead with    signal blocking: ",$justify($fn(elapsed,",",1),7),"us (process CPU time) ",$justify($fn(realtime,",",1),7),"us (real time)",!
  quit
 
+iterateCall(iterations,luaHandle,realtime)
+ new elapsed
+ do iterate(iterations,"do &mlua.lua("">math.abs"",.o,luaHandle,-1)")
+ quit elapsed
+
+
 benchmarkStringProcesses()
+ new expect10,expect1k,expect1m
+ w !,"Strings of size:",?21,$justify("10B",11),"   ",$justify("1kB",11),"   ",$justify("1mB",11),!
+
+ set expect10="8772d22407ac282809a75706f91fab898adea0235f1d304d85c1c48650c283413e533eba63880c51be67e35dfc3433ddbe78e73d459511aaf29251a64a803884"
+ set expect1k="7319dbae7e935f940b140f8b9d8e4d5e2509d634fb67041d8828833dcf857cfecda45282b54c0a77e2875185381d95791594dbf1a0f3db5cae71d95617287c18"
+ set expect1m="7a0712c75269ad5fbf829e04f116701899bcbefc5f07e4610fbaddf493ee2b917f84f1f0107f0ee95b420efc3c4cd6b687ee944a52351fc0c52eba260b11bed6"
  if '$$lua("return isfile('brocr')") w "Skipping uninstalled shellSHA. To install, run: make",!
- else  do benchmarkSizes("shellSHA",200,200,1)
- do benchmarkSizes("pureluaSHA",10000,2000,2)
+ else  do benchmarkSizes("shellSHA",200,200,1,expect10,expect1k,expect1m)
+ do benchmarkSizes("pureluaSHA",10000,2000,2,expect10,expect1k,expect1m)
  if '$$lua("return pcall(require,'hmac')") w "Skipping uninstalled luaCLibSHA. To install, run: luarocks install hmac",!
- else  do benchmarkSizes("luaCLibSHA",200000,100000,100)
+ else  do benchmarkSizes("luaCLibSHA",200000,100000,100,expect10,expect1k,expect1m)
  if '$$lua("return isfile('cstrlib.so')") w "Skipping uninstalled cmumpsSHA. To install, run: make",!
- else  do benchmarkSizes("cmumpsSHA",100000,100000,100)
- do benchmarkSizes("luaStripCharsPrm",200000,100000,100)
- do benchmarkSizes("luaStripCharsDb",100000,50000,100)
+ else  do benchmarkSizes("cmumpsSHA",100000,100000,100,expect10,expect1k,expect1m)
+
+ set expect10=8
+ set expect1k=998
+ set expect1m=999998
+ do benchmarkSizes("luaStripCharsPrm",200000,100000,100,expect10,expect1k,expect1m)
+ do benchmarkSizes("luaStripCharsDb",100000,50000,100,expect10,expect1k,expect1m)
  if '$$lua("return isfile('cstrlib.so')") w "Skipping uninstalled cmumpsStripChars. To install, run: make",!
- else  do benchmarkSizes("cmumpsStripChars",1000000,10000,10)
- do benchmarkSizes("mStripChars",100000,20000,100)
+ else  do benchmarkSizes("cmumpsStripChars",1000000,10000,10,expect10,expect1k,expect1m)
+ do benchmarkSizes("mStripChars",100000,20000,100,expect10,expect1k,expect1m)
  quit
 
-; Benchmark `testName` using various string sizes
-benchmarkSizes(testName,iterations10,iterations1k,iterations1m)
+benchmarkSizes(testName,iterations10,iterations1k,iterations1m,expect10,expect1k,expect1m)
+ ; Benchmark `testName` using various string sizes
  new us10,us1k,us1m
  new rt10,rt1k,rt1m
  w testName,?19
- set us10=$$test(testName,10,iterations10,.rt10)
+ set us10=$$test(testName,10,iterations10,expect10,.rt10)
  w $justify($fn(us10,",",1),11),"us "
- set us1k=$$test(testName,1000,iterations1k,.rt1k)
+ set us1k=$$test(testName,1000,iterations1k,expect1k,.rt1k)
  w $justify($fn(us1k,",",1),11),"us "
- set us1m=$$test(testName,1000000,iterations1m,.rt1m)
+ set us1m=$$test(testName,1000000,iterations1m,expect1m,.rt1m)
  w $justify($fn(us1m,",",1),11),"us   (process CPU time)",!
  w ?19,$justify($fn(rt10,",",1),11),"us ",$justify($fn(rt1k,",",1),11),"us ",$justify($fn(rt1m,",",1),11),"us   (real time)",!
  quit
 
-; Wrap mlua.lua() so that it handles errors; otherwise returns the output
-; Handles up to 8 params, which matches mlua.xc
 lua(lua,a1,a2,a3,a4,a5,a6,a7,a8)
+ ; Wrap mlua.lua() so that it handles errors; otherwise returns the output
+ ; Handles up to 8 params, which matches mlua.xc
  new o,result
  set result=$select($data(a1)=0:$&mlua.lua(lua,.o),$data(a2)=0:$&mlua.lua(lua,.o,,a1),$data(a3)=0:$&mlua.lua(lua,.o,,a1,a2),$data(a4)=0:$&mlua.lua(lua,.o,,a1,a2,a3),$data(a5)=0:$&mlua.lua(lua,.o,,a1,a2,a3,a4),$data(a6)=0:$&mlua.lua(lua,.o,,a1,a2,a3,a4,a5),$data(a7)=0:$&mlua.lua(lua,.o,,a1,a2,a3,a4,a5,a6),$data(a8)=0:$&mlua.lua(lua,.o,,a1,a2,a3,a4,a5,a6,a7),0=0:$&mlua.lua(lua,.o,,a1,a2,a3,a4,a5,a6,a7,a8))
  if result write o set $ecode=",U1,MLua,"
  quit:$quit o quit
 
-; Invoke test `command` with random string of `size`
-test(command,size,iterations,realtime)
- new msg,elapsed
+test(command,size,iterations,expected,realtime)
+ ; Invoke test `command` with random string of `size`, setting realtime to the time taken
+ ; Check that returned result equals expected
+ ; return elapsed time
+ new msg
  set msg=$extract(randomMB,1,size)
  kill result
- set elapsed=$$@command^benchmark(iterations)/iterations
- set realtime=$$lua("return realtime")*1000000/iterations
+ do @command^benchmark(iterations)
+ do assert(result,expected)
  quit elapsed
 
-; ~~~ Signal calling overhead benchmarks
-
-callingOverhead(iterations,luaHandle,realtime)
- new elapsed
+iterate(iterations,code)
+ ; Run code `iterations` times
+ ; WARNING: code must not contain GOTO, NEW, QUIT, (nested) XECUTE and indirection,
+ ; otherwise it will compile at run-time and drastically slow down the iteration
+ new i
  do lua(">start")
- for i=1:1:iterations do
- . do &mlua.lua(">math.abs",.o,luaHandle,-1)
+ for i=1:1:iterations xecute code
  set elapsed=$$lua(">stop")/iterations
  set realtime=$$lua("return realtime")*1000000/iterations
- quit elapsed
-
+ quit
 
 ; ~~~ strStrip benchmarks
 
@@ -99,8 +127,8 @@ stripSetup()
  set chars=" "_$char(9,13,10,12,22)  ; example whitespace chars to strip
  set msg=" "_$extract(msg,1,$length(msg)-2)_" "  ; ensure whitespace either end to strip, just to make it a bit realistic
  ; setup lua
- do lua(" ydb=require'yottadb' chars=ydb.get('chars') match=string.match ")
- q
+ do lua(" chars=ydb.get('chars') match=string.match ")
+ quit
 
 luaStripCharsDb(iterations)
  ; This uses one of the faster Lua string strip methods, trim7, taken from http://lua-users.org/wiki/StringTrim
@@ -108,55 +136,38 @@ luaStripCharsDb(iterations)
  ; If you need to support %, create a macro to automatically substitute it with "%%" without creating overhead
  ; You can also use Lua to replace % as follows, but it adds about 10% overhead (for small msg strings)
  ;   "if string.find(chars, '%', 1, true) then chars=string.gsub(chars, '%%', '%%%%') end"
- new elapsed,i,stripped,chars
- d stripSetup()
+ new stripped,chars
+ do stripSetup()
  ; the first match below is a speedup to avoid very inefficient operation on strings where every character gets stripped
  do lua(" function func() s=ydb.get('msg') stripped=match(s,'^()['..chars..']*$') and '' or match(s,'^['..chars..']*(.*[^'..chars..'])') ydb.set('stripped', stripped) end ")
-
- do lua(">start")
- for i=1:1:iterations do
- . do lua(">func")
- set elapsed=$$lua(">stop")
+ do iterate(iterations,"do lua("">func"")")
  set result=$length(stripped)
- quit elapsed
+ quit
 
 luaStripCharsPrm(iterations)
  ; same as luaStripChrsDb() except passes/returns the string as function parameters rather than ydb.get/set -- see if it's faster
- new elapsed,i,stripped,chars
- d stripSetup()
+ new stripped,chars
+ do stripSetup()
 
  ; the first match below is a speedup to avoid very inefficient operation on strings where every character gets stripped
  do lua(" function func(s) return match(s,'^()['..chars..']*$') and '' or match(s,'^['..chars..']*(.*[^'..chars..'])') end ")
-
- do lua(">start")
- for i=1:1:iterations do
- . set stripped=$$lua(">func",msg)
- set elapsed=$$lua(">stop")
+ do iterate(iterations,"set stripped=$$lua("">func"",msg)")
  set result=$length(stripped)
- quit elapsed
-
+ quit
 
 cmumpsStripChars(iterations)
- new elapsed,i,stripped,chars
- d stripSetup()
-
- do lua(">start")
- for i=1:1:iterations do
- . do &cstrlib.strip(.stripped,msg,chars)
- set elapsed=$$lua(">stop")
+ new stripped,chars
+ do stripSetup()
+ do iterate(iterations,"do &cstrlib.strip(.stripped,msg,chars)")
  set result=$length(stripped)
- quit elapsed
+ quit
 
 mStripChars(iterations)
- new elapsed,i,stripped,chars
- d stripSetup()
-
- do lua(">start")
- for i=1:1:iterations do
- . set stripped=$$%Strip(msg,chars)
- set elapsed=$$lua(">stop")
+ new stripped,chars
+ do stripSetup()
+ do iterate(iterations,"set stripped=$$%Strip(msg,chars)")
  set result=$length(stripped)
- quit elapsed
+ quit
 
 %Strip(PDs,PDchars)
  n i,j,ch,y,stop,from,to,ZAchar
@@ -198,44 +209,29 @@ mStripChars(iterations)
 ; ~~~ SHA benchmarks
 
 shellSHA(iterations)
- new elapsed,i,RAinput,RAret
- do lua(">start")
- for i=1:1:iterations do
- . ; code below taken from Brocade m4_HSHA512
- . set RAinput(1)=msg d %Pipe(.RAret,"./brocr SHA512",.RAinput,$c(13,10),0)
- . set sha512=$g(RAret(1)),sha512=$p($p(sha512,"(",2),")")
- . set result=sha512
- set elapsed=$$lua(">stop")
- quit elapsed
+ new RAinput,RAret
+ do iterate(iterations,"s result=$$m4ShellSHA()")
+ quit
+
+m4ShellSHA()
+ ; code below taken from Brocade m4_HSHA512
+ set RAinput(1)=msg d %Pipe(.RAret,"./brocr SHA512",.RAinput,$c(13,10),0)
+ set sha512=$g(RAret(1)),sha512=$p($p(sha512,"(",2),")")
+ quit sha512
 
 cmumpsSHA(iterations)
- new elapsed,i
- do lua(">start")
- for i=1:1:iterations do
- . do &cstrlib.sha512(.sha512,msg)
- . set result=sha512
- set elapsed=$$lua(">stop")
- quit elapsed
+ do iterate(iterations,"do &cstrlib.sha512(.sha512,msg) set result=sha512")
+ quit
 
 pureluaSHA(iterations)
- new elapsed,i
- do lua(" ydb=require'yottadb' sha=require'sha2' ")
- do lua(" function func(msg) return sha.sha512(msg) end ")
- do lua(">start")
- for i=1:1:iterations do
- . set result=$$lua(">func",msg)
- set elapsed=$$lua(">stop")
- quit elapsed
+ do lua(" sha=require'sha2' function func(msg) return sha.sha512(msg) end ")
+ do iterate(iterations,"set result=$$lua("">func"",msg)")
+ quit
 
 luaCLibSHA(iterations)
- new elapsed,i
- do lua(" ydb=require'yottadb' hmac=require'hmac' ")
- do lua(" function func(msg) ctx=hmac.sha512() ctx:update(msg) return ctx:final() end ")
- do lua(">start")
- for i=1:1:iterations do
- . set result=$$lua(">func",msg)
- set elapsed=$$lua(">stop")
- quit elapsed
+ do lua(" hmac=require'hmac' function func(msg) ctx=hmac.sha512() ctx:update(msg) return ctx:final() end ")
+ do iterate(iterations,"set result=$$lua("">func"",msg)")
+ quit
 
 
 ;%Pipe function to spawn a process from M -- used for shellSHA
