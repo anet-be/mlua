@@ -17,12 +17,19 @@ export LUA_CPATH:=../?.lua;./?.so;$(LUA_CPATH)
 export LUA_INIT:=
 export MLUA_INIT:=
 export ydb_xc_cstrlib:=./cstrlib.xc
-export ydb_routines:=.
+export ydb_routines:=. $(ydb_routines)
 export ydb_xc_mlua:=mlua.xc
+
+#Location of temporary database for benchmarking
+TMPDIR ?= /tmp
+tmpgld = $(TMPDIR)/mlua-benchmark
+export ydb_gbldir=$(tmpgld).gld
 
 all: fetch benchmark
 benchmarks: benchmark
 benchmark: mlua.xc lua-tools build-benchmark-extras
+	rm -f $(tmpgld).gld $(tmpgld).dat
+	bash ../tests/createdb.sh $(YDB_DIST) $(tmpgld).dat >/dev/null 2>&1
 	yottadb -run benchmark
 # alternative target for users who do not permission to access cmumps or qtechng -- though it won't have anything to compare against
 benchmark-lua-only: mlua.xc lua-tools
