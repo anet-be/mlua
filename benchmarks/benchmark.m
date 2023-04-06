@@ -7,6 +7,7 @@
 ; Default function
 benchmark()
  do init()
+ do benchmarkTraverse(4639160)
  do benchmarkSignals()
  do benchmarkStringProcesses()
  quit
@@ -25,6 +26,24 @@ init(usertime)
  do lua(" function stop() local cputime=cputime.get_process_cputime()-start_time+cputime.get_children_process_cputime()-start_child realtime=uptime()-realtime  return cputime  end ")
  set randomMB=$$lua(" return rand.randomMB() ")
  quit
+
+benchmarkTraverse(iterations)
+ new subs,cnt
+ ;set subs=$name(var("this","is","a","fair","number","of","subscripts","on","a","glvn"))
+ set subs=$name(^BCAT("lvd"))
+ for i=1:1:iterations do
+ .set @subs@(i)=$random(2147483646)
+ w "Created records",!
+ do iterate(1,"set cnt=$$mTraverse()")
+ do assert(cnt,iterations,"Not all records iterated")
+ w "Traversed ",cnt," records in ",$justify($fn(elapsed,",",1),7),"us (process CPU time) ",$justify($fn(realtime,",",1),7),"us (real time)",!
+ quit
+
+mTraverse()
+ new node
+ set node="",cnt=0
+ for  set node=$order(^BCAT("lvd",node)) quit:node=""  set cnt=cnt+1
+ quit cnt
 
 assert(str1,str2,msg)
  ; Assert both parameters are equal
