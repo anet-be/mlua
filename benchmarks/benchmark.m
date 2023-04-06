@@ -7,9 +7,9 @@
 ; Default function
 benchmark()
  do init()
- do benchmarkTraverse(4639160)
- do benchmarkSignals()
- do benchmarkStringProcesses()
+ w ! do benchmarkTraverse()
+ w ! do benchmarkSignals()
+ w ! do benchmarkStringProcesses()
  quit
 
 init(usertime)
@@ -27,23 +27,35 @@ init(usertime)
  set randomMB=$$lua(" return rand.randomMB() ")
  quit
 
-benchmarkTraverse(iterations)
- new subs,cnt
- ;set subs=$name(var("this","is","a","fair","number","of","subscripts","on","a","glvn"))
- set subs=$name(^BCAT("lvd"))
- for i=1:1:iterations do
- .set @subs@(i)=$random(2147483646)
- w "Created records",!
- do iterate(1,"set cnt=$$mTraverse()")
- do assert(cnt,iterations,"Not all records iterated")
- w "Traversed ",cnt," records in ",$justify($fn(elapsed,",",1),7),"us (process CPU time) ",$justify($fn(realtime,",",1),7),"us (real time)",!
+benchmarkTraverse()
+ do linearTraverse($name(^BCAT("lvd")),100000)
+ do linearTraverse($name(BCAT("lvd")),100000)
+ do linearTraverse($name(^var("this","is","a","fair","number","of","subscripts","on","a","glvn")),100000)
+ do linearTraverse($name(var("this","is","a","fair","number","of","subscripts","on","a","glvn")),100000)
  quit
 
-mTraverse()
- new node
- set node="",cnt=0
- for  set node=$order(^BCAT("lvd",node)) quit:node=""  set cnt=cnt+1
- quit cnt
+linearTraverse(subs,records)
+ ;given subscripts list `sub`, create a counted table of `records` entries at that subscript
+ new cnt,name,code
+ for i=1:1:records do
+ .set @subs@(i)=$random(2147483646)
+
+ ; in M
+ ; the following accesses @subs@(node) but using faster direct access: ^BCAT("lvd",node)
+ ; for this to work, we must pass iterate() the full inline code to run rather than calling mLinear()
+ set name=$extract(subs,1,$length(subs)-1)_",node)"
+ set code="new node set node="""",cnt=0 for  set node=$order("_name_") quit:node=""""  set cnt=cnt+1"
+ do iterate(10,code)
+ do assert(cnt,records,"Not all records iterated")
+ w "M   "_subs_" traversal of ",cnt," records in ",$justify($fn(elapsed/1000,",",1),7),"ms (process CPU time) ",$justify($fn(realtime/1000,",",1),7),"ms (real time)",!
+
+ ; in Lua
+ set name=$translate(subs,"""()","',")
+ set $piece(name,",",1)="'"_$piece(name,",",1)_"'"
+ set code="set cnt=$$lua(""local cnt,n = 0,ydb.node("_name_") for x in n:subscripts() do cnt=cnt+1 end return cnt"")"
+ do iterate(10,code)
+ w "Lua "_subs_" traversal of ",cnt," records in ",$justify($fn(elapsed/1000,",",1),7),"ms (process CPU time) ",$justify($fn(realtime/1000,",",1),7),"ms (real time)",!
+ quit
 
 assert(str1,str2,msg)
  ; Assert both parameters are equal
@@ -57,7 +69,6 @@ assert(str1,str2,msg)
 
 benchmarkSignals()
  new iterations,elapsed,realtime
- w !
  set iterations=1000000
  set elapsed=$$iterateCall(iterations,0,.realtime)
  w "MLua calling overhead without signal blocking: ",$justify($fn(elapsed,",",1),7),"us (process CPU time) ",$justify($fn(realtime,",",1),7),"us (real time)",!
@@ -73,7 +84,7 @@ iterateCall(iterations,luaHandle,realtime)
 
 benchmarkStringProcesses()
  new expect10,expect1k,expect1m
- w !,"Strings of size:",?21,$justify("10B",11),"   ",$justify("1kB",11),"   ",$justify("1mB",11),!
+ w "Strings of size:",?21,$justify("10B",11),"   ",$justify("1kB",11),"   ",$justify("1mB",11),!
 
  set expect10="8772d22407ac282809a75706f91fab898adea0235f1d304d85c1c48650c283413e533eba63880c51be67e35dfc3433ddbe78e73d459511aaf29251a64a803884"
  set expect1k="7319dbae7e935f940b140f8b9d8e4d5e2509d634fb67041d8828833dcf857cfecda45282b54c0a77e2875185381d95791594dbf1a0f3db5cae71d95617287c18"
@@ -131,12 +142,13 @@ test(command,size,iterations,expected,realtime)
 
 iterate(iterations,code)
  ; Run code `iterations` times
- ; WARNING: code must not contain GOTO, NEW, QUIT, (nested) XECUTE and indirection,
- ; otherwise it will compile at run-time and drastically slow down the iteration
+ ; returns elapsed process CPU time and realtime in globals `elapsed` and `realtime`
  new i
- do lua(">start")
- for i=1:1:iterations xecute code
- set elapsed=$$lua(">stop")/iterations
+ ; include >start in compiled code to ensure we're not counting compile time
+ ; invoke lua directly rather than through $$lua() to avoid M subroutine calling overhead
+ xecute "do &mlua.lua("">start"") for i=1:1:iterations "_code
+ do &mlua.lua(">stop",.elapsed)
+ set elapsed=elapsed/iterations
  set realtime=$$lua("return realtime")*1000000/iterations
  quit
 
@@ -159,7 +171,7 @@ luaStripCharsDb(iterations)
  do stripSetup()
  ; the first match below is a speedup to avoid very inefficient operation on strings where every character gets stripped
  do lua(" function func() s=ydb.get('msg') stripped=match(s,'^()['..chars..']*$') and '' or match(s,'^['..chars..']*(.*[^'..chars..'])') ydb.set('stripped', stripped) end ")
- do iterate(iterations,"do lua("">func"")")
+ do iterate(iterations,"do &mlua.lua("">func"")")
  set result=$length(stripped)
  quit
 
@@ -170,7 +182,7 @@ luaStripCharsPrm(iterations)
 
  ; the first match below is a speedup to avoid very inefficient operation on strings where every character gets stripped
  do lua(" function func(s) return match(s,'^()['..chars..']*$') and '' or match(s,'^['..chars..']*(.*[^'..chars..'])') end ")
- do iterate(iterations,"set stripped=$$lua("">func"",msg)")
+ do iterate(iterations,"do &mlua.lua("">func"",.stripped,0,msg)")
  set result=$length(stripped)
  quit
 
@@ -228,8 +240,8 @@ mStripChars(iterations)
 ; ~~~ SHA benchmarks
 
 shellSHA(iterations)
- new RAinput,RAret
- do iterate(iterations,"s result=$$m4ShellSHA()")
+ new RAinput,RAret,sha512
+ do iterate(iterations,"set result=$$m4ShellSHA()")
  quit
 
 m4ShellSHA()
@@ -239,17 +251,17 @@ m4ShellSHA()
  quit sha512
 
 cmumpsSHA(iterations)
- do iterate(iterations,"do &cstrlib.sha512(.sha512,msg) set result=sha512")
+ do iterate(iterations,"do &cstrlib.sha512(.result,msg)")
  quit
 
 pureluaSHA(iterations)
  do lua(" sha=require'sha2' function func(msg) return sha.sha512(msg) end ")
- do iterate(iterations,"set result=$$lua("">func"",msg)")
+ do iterate(iterations,"do &mlua.lua("">func"",.result,0,msg)")
  quit
 
 luaCLibSHA(iterations)
  do lua(" hmac=require'hmac' function func(msg) ctx=hmac.sha512() ctx:update(msg) return ctx:final() end ")
- do iterate(iterations,"set result=$$lua("">func"",msg)")
+ do iterate(iterations,"do &mlua.lua("">func"",.result,0,msg)")
  quit
 
 
