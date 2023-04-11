@@ -13,11 +13,13 @@ CC := gcc
 LUA_PATH ?= ;;
 LUA_CPATH ?= ;;
 export LUA_PATH:=../?.lua;./?.lua;$(LUA_PATH)
-export LUA_CPATH:=../?.lua;./?.so;$(LUA_CPATH)
+export LUA_CPATH:=../?.so;./?.so;$(LUA_CPATH)
 export LUA_INIT:=
 export MLUA_INIT:=
 export ydb_xc_cstrlib:=./cstrlib.xc
-export ydb_routines:=. $(ydb_routines)
+#read gtmroutines below instead of ydb_routines since we want the original ydb_routines even when propagated from parent MAKE
+#otherwise ydb complains about format issues (I haven't figured out what it means)
+export ydb_routines:=. $(gtmroutines)
 export ydb_xc_mlua:=mlua.xc
 
 #Location of temporary database for benchmarking
