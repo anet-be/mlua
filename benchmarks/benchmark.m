@@ -32,10 +32,12 @@ benchmarkTraverse()
  do linearTraverse($name(BCAT("lvd")),100000)
  do linearTraverse($name(^var("this","is","a","fair","number","of","subscripts","on","a","glvn")),100000)
  do linearTraverse($name(var("this","is","a","fair","number","of","subscripts","on","a","glvn")),100000)
+ do treeTraverse("^tree",5,6)
+ do treeTraverse("tree",5,6)
  quit
 
 linearTraverse(subs,records)
- ;given subscripts list `sub`, create a counted table of `records` entries at that subscript
+ ; Given subscripts list `sub`, create a counted table of `records` entries at that subscript
  new cnt,name,code
  for i=1:1:records do
  .set @subs@(i)=$random(2147483646)
@@ -47,14 +49,55 @@ linearTraverse(subs,records)
  set code="new node set node="""",cnt=0 for  set node=$order("_name_") quit:node=""""  set cnt=cnt+1"
  do iterate(10,code)
  do assert(cnt,records,"Not all records iterated")
- w "M   "_subs_" traversal of ",cnt," records in ",$justify($fn(elapsed/1000,",",1),7),"ms (process CPU time) ",$justify($fn(realtime/1000,",",1),7),"ms (real time)",!
+ w "M   ",subs,?17," traversal of ",cnt," records in ",$justify($fn(elapsed/1000,",",1),7),"ms (process CPU time) ",$justify($fn(realtime/1000,",",1),7),"ms (real time)",!
 
  ; in Lua
+ set code="set cnt=$$lua(""local cnt,n = 0,ydb.node("_$$subs2lua(subs)_") for x in n:subscripts() do cnt=cnt+1 end return cnt"")"
+ do iterate(10,code)
+ w "Lua ",subs,?17," traversal of ",cnt," records in ",$justify($fn(elapsed/1000,",",1),7),"ms (process CPU time) ",$justify($fn(realtime/1000,",",1),7),"ms (real time)",!
+ quit
+
+treeTraverse(subs,length,depth)
+ ; Given subscript `sub`, create a tree of `length` times `depth` entries at that subscript
+ new cnt,name,code
+ do makeTree(subs,length,depth,0)
+
+ ; in M
+ do iterate(10,"set cnt=$$mTraverse(subs)")
+ w "M   ",subs,?10," traversal of ",cnt," records in ",$justify($fn(elapsed/1000,",",1),7),"ms (process CPU time) ",$justify($fn(realtime/1000,",",1),7),"ms (real time)",!
+
+ ; in Lua
+ do assert($$lua("return ydb._VERSION")>=1.2,1,"lua_yottadb version must be >=1.2 to run the Lua tree iteration test")
+ do lua(" node=ydb.node("_$$subs2lua(subs)_") ")
+ do lua(" function counter(node, sub, val)  cnt=cnt+(val and 1 or 0)  end ")
+ do iterate(10,"set cnt=$$lua(""cnt=0 node:gettree(nil,counter) return cnt"")")
+ w "Lua ",subs,?10," traversal of ",cnt," records in ",$justify($fn(elapsed/1000,",",1),7),"ms (process CPU time) ",$justify($fn(realtime/1000,",",1),7),"ms (real time)",!
+ quit
+
+subs2lua(subs)
+ ; Given subscript list "^varname(a,b)" convert it to lua-compatible subscript format "'^varname','a','b'"
+ new name
  set name=$translate(subs,"""()","',")
  set $piece(name,",",1)="'"_$piece(name,",",1)_"'"
- set code="set cnt=$$lua(""local cnt,n = 0,ydb.node("_name_") for x in n:subscripts() do cnt=cnt+1 end return cnt"")"
- do iterate(10,code)
- w "Lua "_subs_" traversal of ",cnt," records in ",$justify($fn(elapsed/1000,",",1),7),"ms (process CPU time) ",$justify($fn(realtime/1000,",",1),7),"ms (real time)",!
+ quit name
+
+mTraverse(subs)
+ new node,cnt
+ set node="",cnt=0
+ for  set node=$order(@subs@(node)) quit:node=""  do
+ .set next=$name(@subs@(node))
+ .set cnt=cnt+1
+ .;w next,"=",@next,!
+ .if $data(@next)>=10 set cnt=cnt+$$mTraverse(next)
+ quit cnt
+
+makeTree(subs,length,depth,value)
+ ;given subscript `sub`, recursively create a tree of `records` entries at that subscript, each with `records` depth
+ new i
+ for i=1:1:length do
+ .;w $name(@subs@(i)),"=",value+i,!
+ .set @subs@(i)=value+i
+ .if depth>1 do makeTree($name(@subs@(i)),length,depth-1,(value+i)*10)
  quit
 
 assert(str1,str2,msg)
@@ -126,7 +169,7 @@ lua(lua,a1,a2,a3,a4,a5,a6,a7,a8)
  ; Handles up to 8 params, which matches mlua.xc
  new o,result
  set result=$select($data(a1)=0:$&mlua.lua(lua,.o),$data(a2)=0:$&mlua.lua(lua,.o,,a1),$data(a3)=0:$&mlua.lua(lua,.o,,a1,a2),$data(a4)=0:$&mlua.lua(lua,.o,,a1,a2,a3),$data(a5)=0:$&mlua.lua(lua,.o,,a1,a2,a3,a4),$data(a6)=0:$&mlua.lua(lua,.o,,a1,a2,a3,a4,a5),$data(a7)=0:$&mlua.lua(lua,.o,,a1,a2,a3,a4,a5,a6),$data(a8)=0:$&mlua.lua(lua,.o,,a1,a2,a3,a4,a5,a6,a7),0=0:$&mlua.lua(lua,.o,,a1,a2,a3,a4,a5,a6,a7,a8))
- if result write o set $ecode=",U1,MLua,"
+ if result write o,! set $ecode=",U1,MLua,"
  quit:$quit o quit
 
 test(command,size,iterations,expected,realtime)

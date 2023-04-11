@@ -121,7 +121,7 @@ build/lua-yottadb/_yottadb.so: build/lua-yottadb/Makefile $(wildcard build/lua-y
 _yottadb.so: build/lua-yottadb/_yottadb.so
 	cp build/lua-yottadb/_yottadb.so .
 yottadb.lua: build/lua-yottadb/yottadb.lua
-	cp build/lua-yottadb/yottadb.lua $@
+	ln -s build/lua-yottadb/yottadb.lua $@
 .PRECIOUS: build/lua-yottadb/yottadb.lua
 build/lua-yottadb/Makefile:
 	@echo Fetching $(dir $@)
@@ -188,14 +188,14 @@ tmpgld = $(TMPDIR)/mlua-test
 export ydb_gbldir=$(tmpgld).gld
 
 #To run specific tests, do: make test TESTS="testBasics testReadme"
-test:
+test: build
 	sed -e 's|.*/mlua.so$$|mlua.so|' mlua.xc >tests/mlua.xc
 	rm -f $(tmpgld).gld $(tmpgld).dat
 	bash tests/createdb.sh $(YDB_DIST) $(tmpgld).dat >/dev/null 2>&1
 	@#Note: must re-set ydb_xc_mlua below because ydb_env_set messes it up if it finds one in ydb_dist
 	. $(YDB_DIST)/ydb_env_set && ydb_xc_mlua=$(ydb_xc_mlua) $(YDB_DIST)/yottadb -run run^unittest $(TESTS)
 benchmarks: benchmark
-benchmark:
+benchmark: build
 	$(MAKE) -C benchmarks
 benchmark-lua-only:
 	$(MAKE) -C benchmarks benchmark-lua-only
