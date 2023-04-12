@@ -7,6 +7,11 @@
 ; Default function
 benchmark()
  do init()
+ ; if command line given, run only the specified functions
+ if $zcmdline'="" w ! do  zhalt 0
+ .new test
+ .for test=1:1:$length($zcmdline," ") w $piece($zcmdline," ",test),":",! do @$piece($zcmdline," ",test)()
+ ; otherwise run all benchmarks
  w ! do benchmarkTraverse()
  w ! do benchmarkSignals()
  w ! do benchmarkStringProcesses()
@@ -28,17 +33,29 @@ init(usertime)
  quit
 
 benchmarkTraverse()
+ do benchmarkLinear1()
+ do benchmarkLinear2()
+ do benchmarkTree()
+ quit
+
+benchmarkLinear1()
  do linearTraverse($name(^BCAT("lvd")),100000)
  do linearTraverse($name(BCAT("lvd")),100000)
+ quit
+
+benchmarkLinear2()
  do linearTraverse($name(^var("this","is","a","fair","number","of","subscripts","on","a","glvn")),100000)
  do linearTraverse($name(var("this","is","a","fair","number","of","subscripts","on","a","glvn")),100000)
+ quit
+
+benchmarkTree()
  do treeTraverse("^tree",5,6)
  do treeTraverse("tree",5,6)
  quit
 
 linearTraverse(subs,records)
  ; Given subscripts list `sub`, create a counted table of `records` entries at that subscript
- new cnt,name,code
+ new cnt,name,code,i
  for i=1:1:records do
  .set @subs@(i)=$random(2147483646)
 

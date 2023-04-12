@@ -32,7 +32,7 @@ benchmarks: benchmark
 benchmark: mlua.xc lua-tools build-benchmark-extras
 	rm -f $(tmpgld).gld $(tmpgld).dat
 	bash ../tests/createdb.sh $(YDB_DIST) $(tmpgld).dat >/dev/null 2>&1
-	yottadb -run benchmark
+	yottadb -run benchmark $(TESTS)
 # alternative target for users who do not permission to access cmumps or qtechng -- though it won't have anything to compare against
 benchmark-lua-only: mlua.xc lua-tools
 	yottadb -run benchmark
