@@ -12,6 +12,7 @@ benchmark()
  .new test
  .for test=1:1:$length($zcmdline," ") w $piece($zcmdline," ",test),":",! do @$piece($zcmdline," ",test)()
  ; otherwise run all benchmarks
+ w ! do benchmarkNodeCreation()
  w ! do benchmarkTraverse()
  w ! do benchmarkSignals()
  w ! do benchmarkStringProcesses()
@@ -30,6 +31,14 @@ init(usertime)
  do lua(" function start() realtime=uptime()  start_child=cputime.get_children_process_cputime() start_time=cputime.get_process_cputime()  end ")
  do lua(" function stop() local cputime=cputime.get_process_cputime()-start_time+cputime.get_children_process_cputime()-start_child realtime=uptime()-realtime  return cputime  end ")
  set randomMB=$$lua(" return rand.randomMB() ")
+ quit
+
+benchmarkNodeCreation()
+ new lua,iterations
+ set iterations=500
+ set lua="for i=1, "_iterations_" do  local n = ydb.node('a').b.c.d.e.f.g.h.i.j.k.l.m.n.o.p.q.r.s.t.u.v.w.x.y.z  end"
+ do minIterate(10,"do &mlua.lua("""_lua_""")")
+ w 26," Node creations in ",$justify($fn(elapsed/iterations,",",1),7),"us (process CPU time) ",$justify($fn(realtime/iterations,",",1),7),"us (real time)",!
  quit
 
 benchmarkTraverse()
@@ -64,13 +73,13 @@ linearTraverse(subs,records)
  ; for this to work, we must pass iterate() the full inline code to run rather than calling mLinear()
  set name=$extract(subs,1,$length(subs)-1)_",node)"
  set code="new node set node="""",cnt=0 for  set node=$order("_name_") quit:node=""""  set cnt=cnt+1"
- do iterate(10,code)
+ do minIterate(10,code)
  do assert(cnt,records,"Not all records iterated")
  w "M   ",subs,?17," traversal of ",cnt," records in ",$justify($fn(elapsed/1000,",",1),7),"ms (process CPU time) ",$justify($fn(realtime/1000,",",1),7),"ms (real time)",!
 
  ; in Lua
  set code="set cnt=$$lua(""local cnt,n = 0,ydb.node("_$$subs2lua(subs)_") for x in n:subscripts() do cnt=cnt+1 end return cnt"")"
- do iterate(10,code)
+ do minIterate(10,code)
  w "Lua ",subs,?17," traversal of ",cnt," records in ",$justify($fn(elapsed/1000,",",1),7),"ms (process CPU time) ",$justify($fn(realtime/1000,",",1),7),"ms (real time)",!
  quit
 
@@ -80,14 +89,14 @@ treeTraverse(subs,length,depth)
  do makeTree(subs,length,depth,0)
 
  ; in M
- do iterate(10,"set cnt=$$mTraverse(subs)")
+ do minIterate(10,"set cnt=$$mTraverse(subs)")
  w "M   ",subs,?10," traversal of ",cnt," records in ",$justify($fn(elapsed/1000,",",1),7),"ms (process CPU time) ",$justify($fn(realtime/1000,",",1),7),"ms (real time)",!
 
  ; in Lua
  do assert($$lua("return ydb._VERSION")>=1.2,1,"lua_yottadb version must be >=1.2 to run the Lua tree iteration test")
  do lua(" node=ydb.node("_$$subs2lua(subs)_") ")
  do lua(" function counter(node, sub, val)  cnt=cnt+(val and 1 or 0)  end ")
- do iterate(10,"set cnt=$$lua(""cnt=0 node:gettree(nil,counter) return cnt"")")
+ do minIterate(10,"set cnt=$$lua(""cnt=0 node:gettree(nil,counter) return cnt"")")
  w "Lua ",subs,?10," traversal of ",cnt," records in ",$justify($fn(elapsed/1000,",",1),7),"ms (process CPU time) ",$justify($fn(realtime/1000,",",1),7),"ms (real time)",!
  quit
 
@@ -210,6 +219,24 @@ iterate(iterations,code)
  do &mlua.lua(">stop",.elapsed)
  set elapsed=elapsed/iterations
  set realtime=$$lua("return realtime")*1000000/iterations
+ quit
+
+minIterate(iterations,code)
+ ; Run code `iterations` times, timing each iteration and return the minimum time measured
+ ; returns elapsed process CPU time and realtime in globals `elapsed` and `realtime`
+ new i,minElapsed,minRealtime
+ set minElapsed=1E18,minRealtime=1E18  ;start with largest possible value
+ for i=1:1:iterations do
+ .;include >start in compiled code to ensure we're not counting compile time
+ .;invoke lua directly rather than through $$lua() to avoid M subroutine calling overhead
+ .xecute "do &mlua.lua("">start"") "_code
+ .do &mlua.lua(">stop",.elapsed)
+ .set realtime=$$lua("return realtime")*1000000
+ .if elapsed<minElapsed set minElapsed=elapsed
+ .if realtime<minRealtime set minRealtime=realtime
+ ;return the minimums
+ set elapsed=minElapsed
+ set realtime=minRealtime
  quit
 
 ; ~~~ strStrip benchmarks
