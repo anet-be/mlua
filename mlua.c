@@ -9,6 +9,8 @@
 #include <string.h>
 #include <stdarg.h>
 #include <signal.h>
+#include <stdbool.h>
+#include <time.h>
 
 #include "gtmxc_types.h"
 #include "lua.h"
@@ -79,6 +81,34 @@ static int luaL_openlibs_ret0(lua_State *L) {
 // Return version numbers for this module
 gtm_int_t mlua_version_number(int _argc) {
   return MLUA_VERSION_NUMBER;
+}
+
+// Return a time counter in nanoseconds -- useful for benchmarking
+// If the OS does not support nanosecond timing, return 0
+// If `process` =0 (or not supplied), return a counter of real-time (since some epoch -- since boot, on linux)
+// If `process`=1 return a counter of CPU time used by this process
+// Note than on a 32-bit machine the counter overflows every 4.2 seconds
+gtm_long_t mlua_nanoseconds(int argc, gtm_int_t process) {
+  struct timespec tp;
+  static bool supported[2] = {false, false};
+  clockid_t id = CLOCK_MONOTONIC;
+  if (argc && process) {
+    #ifdef CLOCK_PROCESS_CPUTIME_ID
+      id = CLOCK_PROCESS_CPUTIME_ID;
+    #else
+      return 0;
+    #endif
+  }
+  if (!supported[argc && process]) {
+    if (clock_getres(id, &tp))
+      return 0;
+    if (tp.tv_sec || tp.tv_nsec < 1)
+      return 0;
+    supported[argc && process] = true;
+  }
+  if (clock_gettime(id, &tp))
+    return 0;
+  return tp.tv_nsec + (gtm_long_t)tp.tv_sec*1000000000L;
 }
 
 // Initialize State_array if it hasn't already been initialized

@@ -8,6 +8,9 @@ YDB_DIST := $(shell pkg-config --variable=prefix yottadb)
 YDB_INSTALL := $(YDB_DIST)/plugin
 CC := gcc
 
+#Set make HIDE_PROCESS_TIME=1 to benchmark with a cleaner output that only shows real time
+HIDE_PROCESS_TIME= ?=
+
 #Ensure tests use our own build of yottadb, not the system one
 #Lua5.1 chokes on too many ending semicolons, so don't add them unless it's empty
 LUA_PATH ?= ;;
@@ -32,7 +35,8 @@ benchmarks: benchmark
 benchmark: mlua.xc lua-tools build-benchmark-extras
 	rm -f $(tmpgld).gld $(tmpgld).dat
 	bash ../tests/createdb.sh $(YDB_DIST) $(tmpgld).dat >/dev/null 2>&1
-	yottadb -run benchmark $(TESTS)
+	@# pipe to cat below prevents yottadb weirdly adding linefeeds into some lua stdout messages
+	yottadb -run benchmark $(TESTS) | cat
 # alternative target for users who do not permission to access cmumps or qtechng -- though it won't have anything to compare against
 benchmark-lua-only: mlua.xc lua-tools
 	yottadb -run benchmark
@@ -40,7 +44,7 @@ build-benchmark-extras:
 	$(MAKE) cmumps build-brocr --no-print-directory || $(MAKE) bad-deps -s
 fetch:
 	$(MAKE) fetch-lua-tools fetch-brocr fetch-cmumps  --no-print-directory || $(MAKE) bad-deps -s
-mlua.xc:
+mlua.xc: ../mlua.xc
 	sed "1 s|.*/mlua.so|../mlua.so|" ../mlua.xc >mlua.xc
 
 

@@ -30,3 +30,4 @@ benchmarks/brocr
 benchmarks/brocr.go
 benchmarks/mlua.xc
 benchmarks/zadloop*
+benchmarks/[0-9]*

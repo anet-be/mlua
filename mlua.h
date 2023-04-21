@@ -28,6 +28,12 @@ gtm_int_t mlua_close(int argc, gtm_long_t lua_handle);
 // return MLUA_VERSION_NUMBER XXYYZZ where XX=major; YY=minor; ZZ=release
 gtm_int_t mlua_version_number(int _argc);
 
+// return a time counter in nanoseconds -- useful for benchmarking
+// if the OS does not support nanosecond timing, return 0
+// if `process` =0 (or not supplied), return a counter of real-time (since some epoch -- since boot, on linux)
+// if `process`=1 return a counter of CPU time used by this process
+gtm_long_t mlua_nanoseconds(int argc, gtm_int_t process);
+
 
 // Define version: Maj,Min,Release
 #define MLUA_VERSION 0,2,1
