@@ -19,26 +19,29 @@ benchmark()
  quit
 
 init(usertime)
+ set hideProcess=$ztrnlnm("HIDE_PROCESS_TIME")'=""
  ; Create random 1MB string from Lua so we can have a reproducable one (fixed seed)
  ; Lua is faster, anyway (see notes in randomMB.lua)
  do lua(" ydb=require'yottadb' rand=require'randomMB' ")
  do lua(" function isfile(name) local f=io.open(name) return f ~= nil and io.close(f)  end ")
- do lua(" cputime=require'cputime' ")
+ ; the following time functions are unused since mlua introduced &mlua.nanoseconds(), but kept for posterity
+ ;do lua(" cputime=require'cputime' ")
  ; time measurement options below: uptime() takes 2us but nanoseconds() takes 2000us! So use uptime().
- do lua(" proc_uptime=assert(io.open('/proc/uptime'), 'Can\'t open /proc/uptime') ")
- do lua(" function uptime()  proc_uptime:seek('set') proc_uptime:flush() return proc_uptime:read('*n') end ")
- do lua(" function nanoseconds()  local f=io.popen('date +%S.%N') local t=f:read('*n') f:close() return t end ")
- do lua(" function start() realtime=uptime()  start_child=cputime.get_children_process_cputime() start_time=cputime.get_process_cputime()  end ")
- do lua(" function stop() local cputime=cputime.get_process_cputime()-start_time+cputime.get_children_process_cputime()-start_child realtime=uptime()-realtime  return cputime  end ")
+ ;do lua(" proc_uptime=assert(io.open('/proc/uptime'), 'Can\'t open /proc/uptime') ")
+ ;do lua(" function uptime()  proc_uptime:seek('set') proc_uptime:flush() return proc_uptime:read('*n') end ")
+ ;do lua(" function nanoseconds()  local f=io.popen('date +%S.%N') local t=f:read('*n') f:close() return t end ")
+ ; the following processtime measurements require Lua module lua-cputime v0.1.0-0: https://github.com/moznion/lua-cputime/tree/v0.1.0-0
+ ;do lua(" function start() realtime=uptime()  start_child=cputime.get_children_process_cputime() start_time=cputime.get_process_cputime()  end ")
+ ;do lua(" function stop() local cputime=cputime.get_process_cputime()-start_time+cputime.get_children_process_cputime()-start_child realtime=uptime()-realtime  return cputime  end ")
  set randomMB=$$lua(" return rand.randomMB() ")
  quit
 
 benchmarkNodeCreation()
  new lua,iterations
- set iterations=500
+ set iterations=50
  set lua="for i=1, "_iterations_" do  local n = ydb.node('a').b.c.d.e.f.g.h.i.j.k.l.m.n.o.p.q.r.s.t.u.v.w.x.y.z  end"
  do minIterate(10,"do &mlua.lua("""_lua_""")")
- w 26," Node creations in ",$justify($fn(elapsed/iterations,",",1),7),"us (process CPU time) ",$justify($fn(realtime/iterations,",",1),7),"us (real time)",!
+ w 26," Node creations in ",$select(hideProcess:"",1:$justify($fn(processtime/iterations,",",1),7)),$select(hideProcess:"",1:"us (process CPU time) "),$justify($fn(realtime/iterations,",",1),7),"us",$select(hideProcess:"",1:" (real time)"),!
  quit
 
 benchmarkTraverse()
@@ -48,18 +51,18 @@ benchmarkTraverse()
  quit
 
 benchmarkLinear1()
- do linearTraverse($name(^BCAT("lvd")),100000)
- do linearTraverse($name(BCAT("lvd")),100000)
+ do linearTraverse($name(^BCAT("lvd")),10000)
+ do linearTraverse($name(LBCAT("lvd")),10000)
  quit
 
 benchmarkLinear2()
- do linearTraverse($name(^var("this","is","a","fair","number","of","subscripts","on","a","glvn")),100000)
- do linearTraverse($name(var("this","is","a","fair","number","of","subscripts","on","a","glvn")),100000)
+ do linearTraverse($name(^var("this","is","a","fair","number","of","subscripts","on","a","glvn")),10000)
+ do linearTraverse($name(lvar("this","is","a","fair","number","of","subscripts","on","a","glvn")),10000)
  quit
 
 benchmarkTree()
- do treeTraverse("^tree",5,6)
- do treeTraverse("tree",5,6)
+ do treeTraverse("^tree",5,5)
+ do treeTraverse("ltree",5,5)
  quit
 
 linearTraverse(subs,records)
@@ -75,12 +78,17 @@ linearTraverse(subs,records)
  set code="new node set node="""",cnt=0 for  set node=$order("_name_") quit:node=""""  set cnt=cnt+1"
  do minIterate(10,code)
  do assert(cnt,records,"Not all records iterated")
- w "M   ",subs,?17," traversal of ",cnt," records in ",$justify($fn(elapsed/1000,",",1),7),"ms (process CPU time) ",$justify($fn(realtime/1000,",",1),7),"ms (real time)",!
+ w "M   ",subs," traversal of ",cnt," subscripts in ",$select(hideProcess:"",1:$justify($fn(processtime/1000,",",1),7)),$select(hideProcess:"",1:"ms (process CPU time) "),$justify($fn(realtime/1000,",",1),7),"ms",$select(hideProcess:"",1:" (real time)"),!
 
- ; in Lua
+ ; names in Lua
  set code="set cnt=$$lua(""local cnt,n = 0,ydb.node("_$$subs2lua(subs)_") for x in n:subscripts() do cnt=cnt+1 end return cnt"")"
  do minIterate(10,code)
- w "Lua ",subs,?17," traversal of ",cnt," records in ",$justify($fn(elapsed/1000,",",1),7),"ms (process CPU time) ",$justify($fn(realtime/1000,",",1),7),"ms (real time)",!
+ w "Lua ",subs," traversal of ",cnt," subscripts in ",$select(hideProcess:"",1:$justify($fn(processtime/1000,",",1),7)),$select(hideProcess:"",1:"ms (process CPU time) "),$justify($fn(realtime/1000,",",1),7),"ms",$select(hideProcess:"",1:" (real time)"),!
+
+ ; nodes in Lua
+ set code="set cnt=$$lua(""local cnt,n = 0,ydb.node("_$$subs2lua(subs)_") for k,v,sub in pairs(n) do cnt=cnt+1 end return cnt"")"
+ do minIterate(10,code)  ;don't do so many iterations because this one is slow
+ w "Lua ",subs," traversal of ",cnt," nodes      in ",$select(hideProcess:"",1:$justify($fn(processtime/1000,",",1),7)),$select(hideProcess:"",1:"ms (process CPU time) "),$justify($fn(realtime/1000,",",1),7),"ms",$select(hideProcess:"",1:" (real time)"),!
  quit
 
 treeTraverse(subs,length,depth)
@@ -90,14 +98,14 @@ treeTraverse(subs,length,depth)
 
  ; in M
  do minIterate(10,"set cnt=$$mTraverse(subs)")
- w "M   ",subs,?10," traversal of ",cnt," records in ",$justify($fn(elapsed/1000,",",1),7),"ms (process CPU time) ",$justify($fn(realtime/1000,",",1),7),"ms (real time)",!
+ w "M   ",subs," traversal of ",cnt," records in ",$select(hideProcess:"",1:$justify($fn(processtime/1000,",",1),7)),$select(hideProcess:"",1:"ms (process CPU time) "),$justify($fn(realtime/1000,",",1),7),"ms",$select(hideProcess:"",1:" (real time)"),!
 
  ; in Lua
  do assert($$lua("return ydb._VERSION")>=1.2,1,"lua_yottadb version must be >=1.2 to run the Lua tree iteration test")
  do lua(" node=ydb.node("_$$subs2lua(subs)_") ")
  do lua(" function counter(node, sub, val)  cnt=cnt+(val and 1 or 0)  end ")
  do minIterate(10,"set cnt=$$lua(""cnt=0 node:gettree(nil,counter) return cnt"")")
- w "Lua ",subs,?10," traversal of ",cnt," records in ",$justify($fn(elapsed/1000,",",1),7),"ms (process CPU time) ",$justify($fn(realtime/1000,",",1),7),"ms (real time)",!
+ w "Lua ",subs," traversal of ",cnt," records in ",$select(hideProcess:"",1:$justify($fn(processtime/1000,",",1),7)),$select(hideProcess:"",1:"ms (process CPU time) "),$justify($fn(realtime/1000,",",1),7),"ms",$select(hideProcess:"",1:" (real time)"),!
  quit
 
 subs2lua(subs)
@@ -121,7 +129,6 @@ makeTree(subs,length,depth,value)
  ;given subscript `sub`, recursively create a tree of `records` entries at that subscript, each with `records` depth
  new i
  for i=1:1:length do
- .;w $name(@subs@(i)),"=",value+i,!
  .set @subs@(i)=value+i
  .if depth>1 do makeTree($name(@subs@(i)),length,depth-1,(value+i)*10)
  quit
@@ -137,18 +144,19 @@ assert(str1,str2,msg)
 ; ~~~ Signal calling overhead benchmarks
 
 benchmarkSignals()
- new iterations,elapsed,realtime
- set iterations=1000000
- set elapsed=$$iterateCall(iterations,0,.realtime)
- w "MLua calling overhead without signal blocking: ",$justify($fn(elapsed,",",1),7),"us (process CPU time) ",$justify($fn(realtime,",",1),7),"us (real time)",!
- set elapsed=$$iterateCall(iterations,$&mlua.open(.o,4),.realtime)
- w "MLua calling overhead with    signal blocking: ",$justify($fn(elapsed,",",1),7),"us (process CPU time) ",$justify($fn(realtime,",",1),7),"us (real time)",!
+ new iterations,processtime,realtime
+ set iterations=100000
+ do sleep(4)  ; to get consistent results, need time after previous CPU-intensive process
+ set processtime=$$iterateCall(iterations,0,.realtime)
+ w "MLua calling overhead without signal blocking: ",$select(hideProcess:"",1:$justify($fn(processtime,",",1),7)),$select(hideProcess:"",1:"us (process CPU time) "),$justify($fn(realtime,",",1),7),"us",$select(hideProcess:"",1:" (real time)"),!
+ set processtime=$$iterateCall(iterations,$&mlua.open(.o,4),.realtime)
+ w "MLua calling overhead with    signal blocking: ",$select(hideProcess:"",1:$justify($fn(processtime,",",1),7)),$select(hideProcess:"",1:"us (process CPU time) "),$justify($fn(realtime,",",1),7),"us",$select(hideProcess:"",1:" (real time)"),!
  quit
 
 iterateCall(iterations,luaHandle,realtime)
- new elapsed
+ new processtime
  do iterate(iterations,"do &mlua.lua("">math.abs"",.o,luaHandle,-1)")
- quit elapsed
+ quit processtime
 
 
 benchmarkStringProcesses()
@@ -169,11 +177,11 @@ benchmarkStringProcesses()
  set expect10=8
  set expect1k=998
  set expect1m=999998
- do benchmarkSizes("luaStripCharsPrm",200000,100000,100,expect10,expect1k,expect1m)
- do benchmarkSizes("luaStripCharsDb",100000,50000,100,expect10,expect1k,expect1m)
+ do benchmarkSizes("luaStripCharsPrm",20000,10000,10,expect10,expect1k,expect1m)
+ do benchmarkSizes("luaStripCharsDb",10000,5000,10,expect10,expect1k,expect1m)
  if '$$lua("return isfile('cstrlib.so')") w "Skipping uninstalled cmumpsStripChars. To install, run: make",!
- else  do benchmarkSizes("cmumpsStripChars",1000000,10000,10,expect10,expect1k,expect1m)
- do benchmarkSizes("mStripChars",100000,20000,100,expect10,expect1k,expect1m)
+ else  do benchmarkSizes("cmumpsStripChars",100000,1000,10,expect10,expect1k,expect1m)
+ do benchmarkSizes("mStripChars",10000,2000,10,expect10,expect1k,expect1m)
  quit
 
 benchmarkSizes(testName,iterations10,iterations1k,iterations1m,expect10,expect1k,expect1m)
@@ -182,12 +190,12 @@ benchmarkSizes(testName,iterations10,iterations1k,iterations1m,expect10,expect1k
  new rt10,rt1k,rt1m
  w testName,?19
  set us10=$$test(testName,10,iterations10,expect10,.rt10)
- w $justify($fn(us10,",",1),11),"us "
+ if 'hideProcess w $justify($fn(us10,",",1),11),"us "
  set us1k=$$test(testName,1000,iterations1k,expect1k,.rt1k)
- w $justify($fn(us1k,",",1),11),"us "
+ if 'hideProcess w $justify($fn(us1k,",",1),11),"us "
  set us1m=$$test(testName,1000000,iterations1m,expect1m,.rt1m)
- w $justify($fn(us1m,",",1),11),"us   (process CPU time)",!
- w ?19,$justify($fn(rt10,",",1),11),"us ",$justify($fn(rt1k,",",1),11),"us ",$justify($fn(rt1m,",",1),11),"us   (real time)",!
+ if 'hideProcess w $justify($fn(us1m,",",1),11),"us   (process CPU time)",!
+ w ?19,$justify($fn(rt10,",",1),11),"us ",$justify($fn(rt1k,",",1),11),"us ",$justify($fn(rt1m,",",1),11),"us",$select(hideProcess:"",1:"   (real time)"),!
  quit
 
 lua(lua,a1,a2,a3,a4,a5,a6,a7,a8)
@@ -201,41 +209,55 @@ lua(lua,a1,a2,a3,a4,a5,a6,a7,a8)
 test(command,size,iterations,expected,realtime)
  ; Invoke test `command` with random string of `size`, setting realtime to the time taken
  ; Check that returned result equals expected
- ; return elapsed time
+ ; return elapsed processtime
  new msg
  set msg=$extract(randomMB,1,size)
  kill result
  do @command^benchmark(iterations)
  do assert(result,expected)
- quit elapsed
+ quit processtime
+
+; Sleep to let CPU clear its cache, etc., after previous benchmark
+sleep(seconds)
+ zsystem "sleep "_seconds
+ quit
+
+; Microsecond timer functions
+start()
+ set realtime=$&mlua.nanoseconds(0)
+ set processtime=$&mlua.nanoseconds(1)
+ quit
+stop()
+ set realtime=($&mlua.nanoseconds(0)-realtime)/1000  ; convert nanoseconds to microseconds
+ set processtime=($&mlua.nanoseconds(1)-processtime)/1000  ; convert nanoseconds to microseconds
+ quit:$quit processtime quit
 
 iterate(iterations,code)
  ; Run code `iterations` times
- ; returns elapsed process CPU time and realtime in globals `elapsed` and `realtime`
+ ; returns elapsed CPU processtime and realtime in globals `processtime` and `realtime`
  new i
- ; include >start in compiled code to ensure we're not counting compile time
- ; invoke lua directly rather than through $$lua() to avoid M subroutine calling overhead
- xecute "do &mlua.lua("">start"") for i=1:1:iterations "_code
- do &mlua.lua(">stop",.elapsed)
- set elapsed=elapsed/iterations
- set realtime=$$lua("return realtime")*1000000/iterations
+ ; include timer start() in compiled code to ensure we're not counting compile time
+ ; invoke lua directly rather than through $$lua() to avoid $$lua() M subroutine overhead
+ xecute "do start() for i=1:1:iterations "_code
+ do stop()
+ set processtime=processtime/iterations
+ set realtime=realtime/iterations
  quit
 
 minIterate(iterations,code)
  ; Run code `iterations` times, timing each iteration and return the minimum time measured
- ; returns elapsed process CPU time and realtime in globals `elapsed` and `realtime`
- new i,minElapsed,minRealtime
- set minElapsed=1E18,minRealtime=1E18  ;start with largest possible value
+ ; returns elapsed CPU processtime and realtime in globals `processtime` and `realtime`
+ new i,minProcesstime,minRealtime
+ set minProcesstime=1E18,minRealtime=1E18  ;start with largest possible value
  for i=1:1:iterations do
- .;include >start in compiled code to ensure we're not counting compile time
- .;invoke lua directly rather than through $$lua() to avoid M subroutine calling overhead
- .xecute "do &mlua.lua("">start"") "_code
- .do &mlua.lua(">stop",.elapsed)
- .set realtime=$$lua("return realtime")*1000000
- .if elapsed<minElapsed set minElapsed=elapsed
+ .;include timer start() in compiled code to ensure we're not counting compile time
+ .;invoke lua directly rather than through $$lua() to avoid $$lua() M subroutine overhead
+ .xecute "do start() "_code
+ .do stop()
+ .if processtime<minProcesstime set minProcesstime=processtime
  .if realtime<minRealtime set minRealtime=realtime
  ;return the minimums
- set elapsed=minElapsed
+ set processtime=minProcesstime
  set realtime=minRealtime
  quit
 

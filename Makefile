@@ -38,7 +38,7 @@ YDB_INCLUDES = $(shell pkg-config --cflags yottadb)
 LUA_INCLUDES = -Ibuild/lua-$(LUA_BUILD)/install/include
 LUA_YOTTADB_INCLUDES = -I../lua-$(LUA_BUILD)/install/include
 LUA_YOTTADB_CFLAGS = -fPIC -std=c11 -pedantic -Wall -Werror -Wno-unknown-pragmas -Wno-discarded-qualifiers $(YDB_INCLUDES) $(LUA_YOTTADB_INCLUDES)
-CFLAGS = -fPIC -std=c11 -pedantic -Wall -Werror -Wno-unknown-pragmas  $(YDB_INCLUDES) $(LUA_INCLUDES)
+CFLAGS = -O3 -fPIC -std=c11 -pedantic -Wall -Werror -Wno-unknown-pragmas  $(YDB_INCLUDES) $(LUA_INCLUDES)
 LDFLAGS = -lm -ldl -lyottadb -L$(YDB_DIST) -Wl,-rpath,$(YDB_DIST),--library-path=build/lua-$(LUA_BUILD)/install/lib,-l:liblua.a
 CC = gcc
 # bash and GNU sort required for LUA_BUILD version comparison
