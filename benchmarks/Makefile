@@ -1,6 +1,5 @@
 # Makefile to build and run MLua benchmarks
 
-
 # ~~~ Variables of interest to user
 
 LUA := lua
