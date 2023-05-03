@@ -27,9 +27,9 @@ Lua ^var("this","is","a","fair","number","of","subscripts","on","a","glvn") trav
 M   lvar("this","is","a","fair","number","of","subscripts","on","a","glvn") traversal of 10000 subscripts in     1.5ms
 Lua lvar("this","is","a","fair","number","of","subscripts","on","a","glvn") traversal of 10000 subscripts in     4.7ms
 Lua lvar("this","is","a","fair","number","of","subscripts","on","a","glvn") traversal of 10000 nodes      in     8.1ms
-M   ^tree traversal of 3905 records in    23.3ms
+M   ^tree traversal of 3905 records in     9.9ms
 Lua ^tree traversal of 3905 records in     6.9ms: faster than M, surprisingly
-M   ltree traversal of 3905 records in    20.7ms
+M   ltree traversal of 3905 records in     8.6ms
 Lua ltree traversal of 3905 records in     5.5ms: faster than M, surprisingly
 ```
 

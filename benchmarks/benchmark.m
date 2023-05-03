@@ -115,10 +115,9 @@ mTraverse(subs)
  new node,cnt
  set node="",cnt=0
  for  set node=$order(@subs@(node)) quit:node=""  do
- .set next=$name(@subs@(node))
  .set cnt=cnt+1
- .;w next,"=",@next,!
- .if $data(@next)>=10 set cnt=cnt+$$mTraverse(next)
+ .quit:$data(@subs@(node))<10
+ .set cnt=cnt+$$mTraverse($name(@subs@(node)))
  quit cnt
 
 makeTree(subs,length,depth,value)
