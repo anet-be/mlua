@@ -1,8 +1,4 @@
 ; Benchmark comparison of SHA2 via M, Lua, and C
-; Dependencies:
-; - Lua module cputime (see `make lua-cputime`) to get process time
-; - /proc/uptime to get real time
-
 
 ; Default function
 benchmark()
@@ -86,9 +82,9 @@ linearTraverse(subs,records)
  w "Lua ",subs," traversal of ",cnt," subscripts in ",$select(hideProcess:"",1:$justify($fn(processtime/1000,",",1),7)),$select(hideProcess:"",1:"ms (process CPU time) "),$justify($fn(realtime/1000,",",1),7),"ms",$select(hideProcess:"",1:" (real time)"),!
 
  ; nodes in Lua
- set code="set cnt=$$lua(""local cnt,n = 0,ydb.node("_$$subs2lua(subs)_") for k,v,sub in pairs(n) do cnt=cnt+1 end return cnt"")"
+ set code="set cnt=$$lua(""local cnt,n = 0,ydb.node("_$$subs2lua(subs)_") for k,v in pairs(n) do cnt=cnt+1 end return cnt"")"
  do minIterate(10,code)  ;don't do so many iterations because this one is slow
- w "Lua ",subs," traversal of ",cnt," nodes      in ",$select(hideProcess:"",1:$justify($fn(processtime/1000,",",1),7)),$select(hideProcess:"",1:"ms (process CPU time) "),$justify($fn(realtime/1000,",",1),7),"ms",$select(hideProcess:"",1:" (real time)"),!
+ w "Lua ",subs," traversal of ",cnt," node objs  in ",$select(hideProcess:"",1:$justify($fn(processtime/1000,",",1),7)),$select(hideProcess:"",1:"ms (process CPU time) "),$justify($fn(realtime/1000,",",1),7),"ms",$select(hideProcess:"",1:" (real time)"),!
  quit
 
 treeTraverse(subs,length,depth)
@@ -202,6 +198,7 @@ lua(lua,a1,a2,a3,a4,a5,a6,a7,a8)
  ; Wrap mlua.lua() so that it handles errors; otherwise returns the output
  ; Handles up to 8 params, which matches mlua.xc
  new o,result
+ ;w "LUA: ",lua,"(",$s($d(a1)=0:"",1:a1_","),$s($d(a1)=0:"",1:a1_","),$s($d(a2)=0:"",1:a2_","),$s($d(a3)=0:"",1:a3_","),$s($d(a4)=0:"",1:a4_","),$s($d(a5)=0:"",1:a5_","),$s($d(a6)=0:"",1:a6_","),$s($d(a7)=0:"",1:a7_","),$s($d(a8)=0:"",1:a8),!
  set result=$select($data(a1)=0:$&mlua.lua(lua,.o),$data(a2)=0:$&mlua.lua(lua,.o,,a1),$data(a3)=0:$&mlua.lua(lua,.o,,a1,a2),$data(a4)=0:$&mlua.lua(lua,.o,,a1,a2,a3),$data(a5)=0:$&mlua.lua(lua,.o,,a1,a2,a3,a4),$data(a6)=0:$&mlua.lua(lua,.o,,a1,a2,a3,a4,a5),$data(a7)=0:$&mlua.lua(lua,.o,,a1,a2,a3,a4,a5,a6),$data(a8)=0:$&mlua.lua(lua,.o,,a1,a2,a3,a4,a5,a6,a7),0=0:$&mlua.lua(lua,.o,,a1,a2,a3,a4,a5,a6,a7,a8))
  if result write o,! set $ecode=",U1,MLua,"
  quit:$quit o quit

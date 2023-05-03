@@ -1,5 +1,7 @@
 # MLua Benchmarks
 
+These benchmarks enable speed comparisons between [Lua and M](#comparison-with-m) and [different lua-yottadb versions](#lua-yottadb-v1.2-compared-with-v2.0). It also shows the [cost of signal blocking](#signal-blocking) and compares various implementations of [practical tasks](#practical-tasks).
+
 From the benchmarks directory, run:
 
 ```shell
@@ -8,11 +10,83 @@ make fetch benchmark
 
 Requirements for some benchmarks are installed by the Makefile. Others will require manual installation of certain Lua modules: for example `luarocks install hmac` to get a SHA library for lua. But running `make` will note these requirements for you.
 
+# Comparison with M
+
+Below is a comparison between M and lua-yottadb doing basic loops through the database:
+
+```lua
+M   ^BCAT("lvd") traversal of 10000 subscripts in     1.7ms
+Lua ^BCAT("lvd") traversal of 10000 subscripts in     3.6ms
+Lua ^BCAT("lvd") traversal of 10000 nodes      in     6.5ms
+M   LBCAT("lvd") traversal of 10000 subscripts in     0.7ms
+Lua LBCAT("lvd") traversal of 10000 subscripts in     2.9ms
+Lua LBCAT("lvd") traversal of 10000 nodes      in     6.0ms
+M   ^var("this","is","a","fair","number","of","subscripts","on","a","glvn") traversal of 10000 subscripts in     2.6ms
+Lua ^var("this","is","a","fair","number","of","subscripts","on","a","glvn") traversal of 10000 subscripts in     5.9ms
+Lua ^var("this","is","a","fair","number","of","subscripts","on","a","glvn") traversal of 10000 nodes      in    11.4ms
+M   lvar("this","is","a","fair","number","of","subscripts","on","a","glvn") traversal of 10000 subscripts in     1.5ms
+Lua lvar("this","is","a","fair","number","of","subscripts","on","a","glvn") traversal of 10000 subscripts in     4.7ms
+Lua lvar("this","is","a","fair","number","of","subscripts","on","a","glvn") traversal of 10000 nodes      in     8.1ms
+M   ^tree traversal of 3905 records in    23.3ms
+Lua ^tree traversal of 3905 records in     6.9ms: faster than M, surprisingly
+M   ltree traversal of 3905 records in    20.7ms
+Lua ltree traversal of 3905 records in     5.5ms: faster than M, surprisingly
+```
+
+- 'subscripts' means traversal of the bare text subscript name
+- 'node objs' is similar traversal of subscripts but where a node object is returned for each subscript
+- 'tree' means traversal of an entire database tree, including all subscripts and their sub-nodes
+
+# Lua-yottadb v1.2 compared with v2.0
+
+Lua-yottadb v2.0 included a significant efficiency rewrite. First, let's take baseline results from lua-yottadb v1.2:
+
+```lua
+26 Node creations in   228.2us
+Lua ^BCAT("lvd") traversal of 10000 subscripts in    14.4ms
+Lua ^BCAT("lvd") traversal of 10000 nodes      in    50.8ms
+Lua LBCAT("lvd") traversal of 10000 subscripts in    13.6ms
+Lua LBCAT("lvd") traversal of 10000 nodes      in    49.5ms
+Lua ^var("this","is","a","fair","number","of","subscripts","on","a","glvn") traversal of 10000 subscripts in    22.6ms
+Lua ^var("this","is","a","fair","number","of","subscripts","on","a","glvn") traversal of 10000 nodes      in   108.4ms
+Lua lvar("this","is","a","fair","number","of","subscripts","on","a","glvn") traversal of 10000 subscripts in    21.2ms
+Lua lvar("this","is","a","fair","number","of","subscripts","on","a","glvn") traversal of 10000 nodes      in   106.8ms
+Lua ^tree traversal of 3905 records in    50.6ms
+Lua ltree traversal of 3905 records in    46.6ms
+```
+
+Now compare with the results from lua-yottadb v2.0 which includes efficiency improvements:
+
+```lua
+ 13x faster:    26 Node creations in    17.3us
+4.0x faster:   Lua ^BCAT("lvd") traversal of 10000 subscripts in     3.6ms
+7.8x faster:   Lua ^BCAT("lvd") traversal of 10000 nodes      in     6.5ms
+4.7x faster:   Lua LBCAT("lvd") traversal of 10000 subscripts in     2.9ms
+8.3x faster:   Lua LBCAT("lvd") traversal of 10000 nodes      in     6.0ms
+3.8x faster:   Lua ^var("this","is","a","fair","number","of","subscripts","on","a","glvn") traversal of 10000 subscripts in     5.9ms
+9.5x faster:   Lua ^var("this","is","a","fair","number","of","subscripts","on","a","glvn") traversal of 10000 nodes      in    11.4ms
+4.5x faster:   Lua lvar("this","is","a","fair","number","of","subscripts","on","a","glvn") traversal of 10000 subscripts in     4.7ms
+ 13x faster:   Lua lvar("this","is","a","fair","number","of","subscripts","on","a","glvn") traversal of 10000 nodes      in     8.1ms
+7.3x faster:   Lua ^tree traversal of 3905 records in     6.9ms
+8.5x faster:   Lua ltree traversal of 3905 records in     5.5ms
+```
+
+# Signal blocking
+
+If it is required, signal blocking (see [docs](https://github.com/anet-be/mlua#signals--eintr-errors)) does slow down MLua calls to M routines as seen below:
+
+```lua
+MLua calling overhead without signal blocking:     1.7us
+MLua calling overhead with    signal blocking:     3.1us
+```
+
+# Practical tasks
+
 ## SHA512
 
 For comparison purposes, here are my benchmark results for calculation of SHA512:
 
-```
+```lua
 REAL time measured
         data size:           10B           1kB           1mB  
 shellSHA               2,656.7us     2,271.9us 1,445,201.9us 
@@ -44,7 +118,7 @@ These tests were run in Lua 5.4.4, on Linux kernel 5.4.0-117, with a 64-bit Inte
 
 Here are the benchmark results for different functions to strip strings:
 
-```
+```lua
 USER time measured
         data size:           10B           1kB           1mB  
 luaStripCharsPrm           1.1us         3.1us     2,204.0us 
@@ -56,7 +130,7 @@ mStripChars                2.6us        10.4us     7,779.9us
 These show several more facts of interest:
 
 - **luaStripCharsPrm** is a very simple string strip() function using Lua pattern matching, essentially equal to `match(string, '^[<chars>]*(.*[^<chars>])')` except with a minor tweak to improve speed on blank strings. The string is passed in and returned via MLua function call parameters. It should be noted that since this implementation uses Lua's built-in string matching, it is essentially a C implementation inside some pretty Lua wrapping paper.
-- **luaStripCharsDb** is the same only the string is not passed/returned in the MLua function call parameters. Instead, the Lua function fetches the string from a YDB local using ydb.get('string') and returns it using ydb.set('result', value). It takes three times as long for small strings. This shows that parameter passing is considerably faster than ydb get/set, and suggests that the efficiency of ydb.get/set should be investigated for improvement.
+- **luaStripCharsDb** is the same only the string is not passed/returned in the MLua function call parameters. Instead, the Lua function fetches the string from a YDB local using ydb.get('string') and returns it using ydb.set('result', value). It takes three times as long for small strings (since the version 2.0 efficiency improvements, it is now only 1.4 times as long).
 - **cmumpsStripChars** is a C implementation of strip(), called directly by YDB (not via MLua). This is the fastest solution with small strings, showing, as we expect, that the function call overhead for C is very small. However, for larger strings this function is less efficient, which suggests it could benefit from an improved algorithm.
 - **mStripChars** is Brocade's native M implementation of strip(). This shows that M is no sluggard, but in the case of small strings, Lua wins -- probably because the M implementation requires many complex setup steps.
 
