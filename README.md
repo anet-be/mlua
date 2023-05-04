@@ -160,16 +160,28 @@ MLua also uses [Lua](https://www.lua.org/) (copyright © 1994–2021 Lua.org, PU
 ## Installation
 
 Prerequisites: linux, gcc, yottadb
+Install YottaDB per the [Quick Start](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#quick-start) guide instructions or from [source](https://gitlab.com/YottaDB/DB/YDB).
 
-1. Install YottaDB per the [Quick Start](https://docs.yottadb.com/MultiLangProgGuide/MultiLangProgGuide.html#quick-start) guide instructions or from [source](https://gitlab.com/YottaDB/DB/YDB).
-2. git clone `<mlua repository>` mlua && cd mlua
-3. make
-4. sudo make install       # install MLua
+To install MLua itself:
+
+```shell
+git clone `<mlua repository>` mlua
+cd mlua && make
+make install       # install MLua
+```
+
+### Explanation
+
+Here's what is going on in the installation above:
+
+- Line 1 `git clone` fetches the MLua code.
+- Line 2 `make` downloads and then builds the Lua language, then it builds MLua.
+- Line 3 `make install` copies mlua.xc and mlua.so, typically into $ydb_dist/plugin, and _yottadb.so and yottadb.lua into the system lua folders.
 
 If you also want to install the Lua version you just built into your system, do:
 
 ```shell
-sudo make install-lua
+make install-lua
 ```
 
 You may also need to double-check that /usr/local/bin is in your path and/or run `hash lua` to refresh bash's cached PATH so it can find the new /usr/local/bin/lua.
@@ -177,19 +189,12 @@ You may also need to double-check that /usr/local/bin is in your path and/or run
 If you need to use a different Lua version or install into a non-standard YDB directory, change the last line to something like:
 
 ```shell
-sudo make install LUA_BUILD=5.x.x YDB_DEST=<your_ydb_plugin_directory> LUA_LIB_INSTALL=/usr/local/lib/lua/x.x LUA_MOD_INSTALL=/usr/local/share/lua/x.x
+make install LUA_BUILD=5.x.x YDB_DEST=<your_ydb_plugin_directory> LUA_LIB_INSTALL=/usr/local/lib/lua/x.x LUA_MOD_INSTALL=/usr/local/share/lua/x.x
 ```
 
 MLua is implemented as a shared library mlua.so which also embeds Lua and the Lua library. There is no need to install Lua separately.
 
 Instead of installing to the system, you can also install files into a local directory `deploy` with `make install local`.
-
-### Explanation
-
-Here's what is going on in the installation.
-Line 2 fetches the MLua code and makes it the working directory.
-Line 3 downloads and then builds the Lua language, then it builds MLua.
-Line 4 installs mlua.xc and mlua.so, typically into $ydb_dist/plugin, and _yottadb.so and yottadb.lua into the system lua folders
 
 Check that everything is in the right place:
 
@@ -203,6 +208,17 @@ $ ls -1 /usr/local/share/lua/*/yottadb.* /usr/local/lib/lua/*/_yottadb.*
 ```
 
 The ydb_env_set script provided by YDB, automatically provides the environment variables needed for YDB to access any plugin installed in the plugin directory shown here. For old releases of the database you may need to provide ydb_xc_mlua environment variable explicitly.
+
+### Updating MLua
+
+To update both MLua and lua-yottadb from the internet and build+install:
+
+```shell
+make update
+make install
+```
+
+
 
 ## TESTING
 

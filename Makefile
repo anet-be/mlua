@@ -54,9 +54,11 @@ FETCH_LIBREADLINE = $(if $(shell which apt-get), $(BECOME_ROOT) apt-get install 
 all: fetch build
 fetch: fetch-lua fetch-lua-yottadb			# Download files for build; no internet required after this
 build: build-lua build-lua-yottadb build-mlua
-update: update-lua-yottadb
+update: update-mlua update-lua-yottadb
 
 build-mlua: mlua.so
+update-mlua:
+	git pull --rebase
 mlua.o: mlua.c .ARG~LUA_BUILD build-lua
 	$(CC) -c $<  -o $@ $(CFLAGS) $(LDFLAGS)
 mlua.so: mlua.o
@@ -110,7 +112,7 @@ fetch-readline: /usr/include/readline/readline.h
 
 # ~~~ Lua-yottadb: fetch lua-yottadb and build it
 
-fetch-lua-yottadb: build/lua-yottadb/Makefile
+fetch-lua-yottadb: build/lua-yottadb/Makefile update-lua-yottadb
 build-lua-yottadb: _yottadb.so yottadb.lua
 update-lua-yottadb: build/lua-yottadb/Makefile
 	git -C build/lua-yottadb remote set-url origin $(LUA_YOTTADB_SOURCE)
@@ -121,7 +123,7 @@ build/lua-yottadb/_yottadb.so: build/lua-yottadb/Makefile $(wildcard build/lua-y
 _yottadb.so: build/lua-yottadb/_yottadb.so
 	cp build/lua-yottadb/_yottadb.so .
 yottadb.lua: build/lua-yottadb/yottadb.lua
-	ln -s build/lua-yottadb/yottadb.lua $@
+	ln -sf build/lua-yottadb/yottadb.lua $@
 .PRECIOUS: build/lua-yottadb/yottadb.lua
 build/lua-yottadb/Makefile:
 	@echo Fetching $(dir $@)
@@ -251,7 +253,7 @@ $(shell mkdir -p build)			# So I don't need to do it in every target
 
 #Note: do not list build-lua and fetch-lua as .PHONY: this allows them to be used as prerequisites of real targets
 # (build-lua, at least, needs to be a prerequisite of anything that uses lua header files)
-.PHONY: fetch fetch-lua-yottadb fetch-lua-%
+.PHONY: fetch fetch-lua-yottadb update-lua-yottadb update-mlua fetch-lua-%
 .PHONY: build build-lua-yottadb build-lua-% build-mlua
 .PHONY: benchmarks benchmark-lua-only
 .PHONY: install install-lua
