@@ -112,7 +112,7 @@ fetch-readline: /usr/include/readline/readline.h
 
 # ~~~ Lua-yottadb: fetch lua-yottadb and build it
 
-fetch-lua-yottadb: build/lua-yottadb/Makefile update-lua-yottadb
+fetch-lua-yottadb: build/lua-yottadb/Makefile
 build-lua-yottadb: _yottadb.so yottadb.lua
 update-lua-yottadb: build/lua-yottadb/Makefile
 	git -C build/lua-yottadb remote set-url origin $(LUA_YOTTADB_SOURCE)
