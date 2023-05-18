@@ -5,6 +5,7 @@ run()
  new allTests
  set allTests="testBasics testParameters testReadme testTreeHeight testLuaStates testInit testSignals"
  if $zcmdline'="" set allTests=$zcmdline
+ w "Testing: ",allTests,!
  do test(allTests)
  quit
 
@@ -16,19 +17,22 @@ test(testList)
  set luaVersion=$piece(luaVersion," ",2)
  w "MLua is built using Lua ",luaVersion,!
  do assert(1,luaVersion>=5.1,"luaVersion is <5.1")
- set failures=0,tests=0
+ set failures=0,tests=0,skipped=0
  for i=1:1:$length(testList," ") do
  .set fail=0
  .set tests=tests+1
  .set command=$piece(testList," ",i)
  .do
- ..new (command,fail,luaVersion)  ;delete all unnecessary locals before each test
+ ..new $etrap,error
+ ..set $etrap="set error=$ecode  if error["",M13,Z150373194,"" set skipped=skipped+1,$ecode="""""  ; ignore invalid tests names
+ ..new (command,fail,skipped,luaVersion)  ;delete all unnecessary locals before each test
  ..w command,!
  ..do assert(0,$&mlua.close())  ;close all Lua states to make sure every test starts fresh
  ..do lua("ydb = require 'yottadb'")
  ..do @command^unittest()
  .set failures=failures+fail
- if failures=0 write tests,"/",tests," tests PASSED!",!
+ if skipped>0 write skipped,"/",tests," tests UNDEFINED; ",failures," FAILED",!
+ else  if failures=0 write tests,"/",tests," tests PASSED!",!
  else  write failures,"/",tests," tests FAILED!",! zhalt 1
  quit
 

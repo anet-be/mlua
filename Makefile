@@ -194,6 +194,7 @@ test: build
 	sed -e 's|.*/mlua.so$$|mlua.so|' mlua.xc >tests/mlua.xc
 	rm -f $(tmpgld).gld $(tmpgld).dat
 	bash tests/createdb.sh $(YDB_DIST) $(tmpgld).dat >/dev/null 2>&1
+	rm -f /tmp/%ydbocto.dat /tmp/%ydbaim.dat
 	@#Note: must re-set ydb_xc_mlua below because ydb_env_set messes it up if it finds one in ydb_dist
 	. $(YDB_DIST)/ydb_env_set && ydb_xc_mlua=$(ydb_xc_mlua) $(YDB_DIST)/yottadb -run run^unittest $(TESTS)
 benchmarks: benchmark
