@@ -20,6 +20,7 @@ yottadb.lua
 tasks
 
 tests/mlua.xc
+tests/db.*
 
 benchmarks/build
 benchmarks/*.time

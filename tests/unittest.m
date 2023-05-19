@@ -13,7 +13,7 @@ run()
 test(testList)
  new command
  set luaVersion=$$lua("return _VERSION")
- do assertNotFatal("",luaVersion,"Lua returned nothing!")
+ do assertFatal(""=luaVersion,0,"Lua returned nothing for global _VERSION!")
  set luaVersion=$piece(luaVersion," ",2)
  w "MLua is built using Lua ",luaVersion,!
  do assert(1,luaVersion>=5.1,"luaVersion is <5.1")
@@ -71,15 +71,6 @@ assertFatal(str1,str2,msg)
  set line=$stack($stack(-1)-1,"PLACE")
  if str1'=str2 write "  Failed ("_line_"): "_msg_"'",str1,"' <> '",str2,"'",! set fail=1
  if str1'=str2 zhalt 2
- quit
-
-; Assert both parameters are notequal
-assertNotFatal(str1,str2,msg)
- new line
- set msg=$select($data(msg)=0:"",1:msg_"; ")
- set line=$stack($stack(-1)-1,"PLACE")
- if str1=str2 write "  Failed ("_line_"): "_msg_"'",str1,"' = '",str2,"'",! set fail=1
- if str1=str2 zhalt 2
  quit
 
 

@@ -20,14 +20,11 @@ LUA_MOD_INSTALL=/usr/local/share/lua/$(LUA_VERSION)
 LUA_YOTTADB_VERSION=master
 LUA_YOTTADB_SOURCE=https://github.com/anet-be/lua-yottadb.git
 # Locate YDB install
-YDB_DIST:=$(ydb_dist)
-ifeq ($(YDB_DIST),)
- YDB_DIST:=$(shell pkg-config --variable=prefix yottadb)
- ifeq ($(YDB_DIST),)
-   $(error please install yottadb or supply the path to your yottadb install with 'make YDB_INSTALL=/path/to/ydb')
- endif
+ydb_dist?=$(shell pkg-config --variable=prefix yottadb --silence-errors)
+ifeq ($(ydb_dist),)
+  $(error Could not find $$ydb_dist; please install yottadb or set $$ydb_dist to your YDB install')
 endif
-YDB_INSTALL:=$(YDB_DIST)/plugin
+YDB_INSTALL:=$(ydb_dist)/plugin
 
 
 
@@ -39,9 +36,10 @@ LUA_INCLUDES = -Ibuild/lua-$(LUA_BUILD)/install/include
 LUA_YOTTADB_INCLUDES = -I../lua-$(LUA_BUILD)/install/include
 LUA_YOTTADB_CFLAGS = -fPIC -std=c11 -pedantic -Wall -Werror -Wno-unknown-pragmas -Wno-discarded-qualifiers $(YDB_INCLUDES) $(LUA_YOTTADB_INCLUDES)
 CFLAGS = -O3 -fPIC -std=c11 -pedantic -Wall -Werror -Wno-unknown-pragmas  $(YDB_INCLUDES) $(LUA_INCLUDES)
-LDFLAGS = -lm -ldl -lyottadb -L$(YDB_DIST) -Wl,-rpath,$(YDB_DIST),--library-path=build/lua-$(LUA_BUILD)/install/lib,-l:liblua.a
+LDFLAGS = -lm -ldl -lyottadb -L$(ydb_dist) -Wl,-rpath,$(ydb_dist),--library-path=build/lua-$(LUA_BUILD)/install/lib,-l:liblua.a
 CC = gcc
 # bash and GNU sort required for LUA_BUILD version comparison
+# bash required for { command grouping }
 SHELL=bash
 $(if $(shell sort -V /dev/null 2>&1), $(error "GNU sort >= 7.0 required to get the -V option"))
 # Define command to become root (sudo) only if we are not already root
@@ -158,7 +156,7 @@ allvars:
 
 # clean just our own mlua build
 clean: clean-lua-yottadb
-	rm -f *.o *.so try
+	rm -f *.o *.so try tests/db.* tests/mlua.xc
 	rm -rf deploy
 	$(MAKE) -C benchmarks clean  --no-print-directory
 # clean everything we've built
@@ -182,21 +180,27 @@ export LUA_CPATH:=./?.so;$(LUA_CPATH)
 export LUA_INIT:=
 #used to check that MLUA_INIT works:
 export MLUA_INIT:=inittest=1
-export ydb_routines:=tests $(ydb_routines)
+export ydb_routines:=tests $(ydb_dist)/libyottadbutil.so
 export ydb_xc_mlua:=tests/mlua.xc
 
 TMPDIR ?= /tmp
 tmpgld = $(TMPDIR)/mlua-test
-export ydb_gbldir=$(tmpgld).gld
+export ydb_gbldir=$(tmpgld)/db.gld
 
 #To run specific tests, do: make test TESTS="testBasics testReadme"
-test: build
+test: build tests/mlua.xc tests/db.gld
+	rm $(tmpgld) -rf  &&  mkdir -p $(tmpgld)
+	cp tests/db.* $(tmpgld)/
+	@# pipe to cat below prevents yottadb mysteriously adding confusing linefeeds in the output
+	set -o pipefail && $(ydb_dist)/yottadb -run run^unittest $(TESTS) | cat
+tests/mlua.xc:
 	sed -e 's|.*/mlua.so$$|mlua.so|' mlua.xc >tests/mlua.xc
-	rm -f $(tmpgld).gld $(tmpgld).dat
-	bash tests/createdb.sh $(YDB_DIST) $(tmpgld).dat >/dev/null 2>&1
-	rm -f /tmp/%ydbocto.dat /tmp/%ydbaim.dat
-	@#Note: must re-set ydb_xc_mlua below because ydb_env_set messes it up if it finds one in ydb_dist
-	. $(YDB_DIST)/ydb_env_set && ydb_xc_mlua=$(ydb_xc_mlua) $(YDB_DIST)/yottadb -run run^unittest $(TESTS)
+tests/db.dat: tests/db.gld
+tests/db.gld:
+	@echo Creating Test Database
+	rm -f tests/db.gld $(tmpgld)/db.dat
+	ydb_gbldir=tests/db.gld   bash tests/createdb.sh $(ydb_dist) $(tmpgld)/db.dat  >/dev/null
+	cp $(tmpgld)/db.dat tests/db.dat  # save it so later tests don't have to recreate it
 benchmarks: benchmark
 benchmark: build
 	$(MAKE) -C benchmarks
@@ -212,7 +216,7 @@ testall:
 		echo "*** Testing with Lua $$lua ***" ; \
 		$(MAKE) clean-lua-yottadb LUA_BUILD=$$lua --no-print-directory || exit 1; \
 		$(MAKE) test-lua-yottadb LUA_BUILD=$$lua --no-print-directory || exit 1; \
-		$(MAKE) LUA_BUILD=$$lua all test || exit 1; \
+		$(MAKE) LUA_BUILD=$$lua all test || { rm -f _yottadb.so yottadb.lua; exit 1; }; \
 	done
 	$(MAKE) clean-lua-yottadb --no-print-directory  # ensure not built with any Lua version lest it confuse future builds with default Lua
 	@echo Successfully tested with Lua versions $(LUA_TEST_BUILDS)
