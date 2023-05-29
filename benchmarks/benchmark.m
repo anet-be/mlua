@@ -36,7 +36,7 @@ benchmarkNodeCreation()
  new lua,iterations
  set iterations=50
  set lua="for i=1, "_iterations_" do  local n = ydb.node('a').b.c.d.e.f.g.h.i.j.k.l.m.n.o.p.q.r.s.t.u.v.w.x.y.z  end"
- do minIterate(10,"do &mlua.lua("""_lua_""")")
+ do minIterate(100,"do &mlua.lua("""_lua_""")")
  w 26," Node creations in ",$select(hideProcess:"",1:$justify($fn(processtime/iterations,",",1),7)),$select(hideProcess:"",1:"us (process CPU time) "),$justify($fn(realtime/iterations,",",1),7),"us",$select(hideProcess:"",1:" (real time)"),!
  quit
 

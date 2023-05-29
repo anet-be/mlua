@@ -12,34 +12,34 @@ Requirements for some benchmarks are installed by the Makefile. Others will requ
 
 # Comparison with M
 
-Below is a comparison between M and lua-yottadb doing basic loops through the database:
+Below is a comparison between M and lua-yottadb (v2.1) doing basic loops through the database:
 
 ```lua
 M   ^BCAT("lvd") traversal of 10000 subscripts in     1.7ms
-Lua ^BCAT("lvd") traversal of 10000 subscripts in     3.6ms
-Lua ^BCAT("lvd") traversal of 10000 nodes      in     6.5ms
+Lua ^BCAT("lvd") traversal of 10000 subscripts in     4.0ms
+Lua ^BCAT("lvd") traversal of 10000 nodes      in     7.5ms
 M   LBCAT("lvd") traversal of 10000 subscripts in     0.7ms
-Lua LBCAT("lvd") traversal of 10000 subscripts in     2.9ms
-Lua LBCAT("lvd") traversal of 10000 nodes      in     6.0ms
-M   ^var("this","is","a","fair","number","of","subscripts","on","a","glvn") traversal of 10000 subscripts in     2.6ms
-Lua ^var("this","is","a","fair","number","of","subscripts","on","a","glvn") traversal of 10000 subscripts in     5.9ms
-Lua ^var("this","is","a","fair","number","of","subscripts","on","a","glvn") traversal of 10000 nodes      in    11.4ms
-M   lvar("this","is","a","fair","number","of","subscripts","on","a","glvn") traversal of 10000 subscripts in     1.5ms
-Lua lvar("this","is","a","fair","number","of","subscripts","on","a","glvn") traversal of 10000 subscripts in     4.7ms
-Lua lvar("this","is","a","fair","number","of","subscripts","on","a","glvn") traversal of 10000 nodes      in     8.1ms
-M   ^tree traversal of 3905 records in     9.9ms
-Lua ^tree traversal of 3905 records in     6.9ms: faster than M, surprisingly
-M   ltree traversal of 3905 records in     8.6ms
-Lua ltree traversal of 3905 records in     5.5ms: faster than M, surprisingly
+Lua LBCAT("lvd") traversal of 10000 subscripts in     3.2ms
+Lua LBCAT("lvd") traversal of 10000 nodes      in     5.6ms
+M   ^var("this","is","a","fair","number","of","subscripts","on","a","glvn") traversal of 10000 subscripts in     2.4ms
+Lua ^var("this","is","a","fair","number","of","subscripts","on","a","glvn") traversal of 10000 subscripts in     5.3ms
+Lua ^var("this","is","a","fair","number","of","subscripts","on","a","glvn") traversal of 10000 nodes      in    10.2ms
+M   lvar("this","is","a","fair","number","of","subscripts","on","a","glvn") traversal of 10000 subscripts in     1.4ms
+Lua lvar("this","is","a","fair","number","of","subscripts","on","a","glvn") traversal of 10000 subscripts in     4.3ms
+Lua lvar("this","is","a","fair","number","of","subscripts","on","a","glvn") traversal of 10000 nodes      in     7.9ms
+M   ^tree traversal of 3905 records in     9.4ms
+Lua ^tree traversal of 3905 records in     6.1ms: faster than M, surprisingly
+M   ltree traversal of 3905 records in     8.2ms
+Lua ltree traversal of 3905 records in     4.7ms: faster than M, surprisingly
 ```
 
 - 'subscripts' means traversal of the bare text subscript name
 - 'node objs' is similar traversal of subscripts but where a node object is returned for each subscript
 - 'tree' means traversal of an entire database tree, including all subscripts and their sub-nodes
 
-# Lua-yottadb v1.2 compared with v2.0
+# Lua-yottadb v1.2 compared with v2.1
 
-Lua-yottadb v2.0 included a significant efficiency rewrite. First, let's take baseline results from lua-yottadb v1.2:
+Lua-yottadb v2.0/2.1 included a significant efficiency rewrite. First, let's take baseline results from lua-yottadb v1.2:
 
 ```lua
 26 Node creations in   228.2us
@@ -55,20 +55,20 @@ Lua ^tree traversal of 3905 records in    50.6ms
 Lua ltree traversal of 3905 records in    46.6ms
 ```
 
-Now compare with the results from lua-yottadb v2.0 which includes efficiency improvements:
+Now compare with the results from lua-yottadb v2.1 which includes efficiency improvements:
 
 ```lua
- 13x faster:    26 Node creations in    17.3us
-4.0x faster:   Lua ^BCAT("lvd") traversal of 10000 subscripts in     3.6ms
-7.8x faster:   Lua ^BCAT("lvd") traversal of 10000 nodes      in     6.5ms
-4.7x faster:   Lua LBCAT("lvd") traversal of 10000 subscripts in     2.9ms
-8.3x faster:   Lua LBCAT("lvd") traversal of 10000 nodes      in     6.0ms
-3.8x faster:   Lua ^var("this","is","a","fair","number","of","subscripts","on","a","glvn") traversal of 10000 subscripts in     5.9ms
-9.5x faster:   Lua ^var("this","is","a","fair","number","of","subscripts","on","a","glvn") traversal of 10000 nodes      in    11.4ms
-4.5x faster:   Lua lvar("this","is","a","fair","number","of","subscripts","on","a","glvn") traversal of 10000 subscripts in     4.7ms
- 13x faster:   Lua lvar("this","is","a","fair","number","of","subscripts","on","a","glvn") traversal of 10000 nodes      in     8.1ms
-7.3x faster:   Lua ^tree traversal of 3905 records in     6.9ms
-8.5x faster:   Lua ltree traversal of 3905 records in     5.5ms
+ 47x faster:    26 Node creations in     4.9us
+3.6x faster:   Lua ^BCAT("lvd") traversal of 10000 subscripts in     4.0ms
+6.8x faster:   Lua ^BCAT("lvd") traversal of 10000 nodes      in     7.5ms
+4.3x faster:   Lua LBCAT("lvd") traversal of 10000 subscripts in     3.2ms
+8.8x faster:   Lua LBCAT("lvd") traversal of 10000 nodes      in     5.6ms
+5.3x faster:   Lua ^var("this","is","a","fair","number","of","subscripts","on","a","glvn") traversal of 10000 subscripts in     4.3ms
+ 11x faster:   Lua ^var("this","is","a","fair","number","of","subscripts","on","a","glvn") traversal of 10000 nodes      in    10.7ms
+4.9x faster:   Lua lvar("this","is","a","fair","number","of","subscripts","on","a","glvn") traversal of 10000 subscripts in     4.3ms
+ 14x faster:   Lua lvar("this","is","a","fair","number","of","subscripts","on","a","glvn") traversal of 10000 nodes      in     7.9ms
+8.3x faster:   Lua ^tree traversal of 3905 records in     6.1ms
+9.9x faster:   Lua ltree traversal of 3905 records in     4.7ms
 ```
 
 # Signal blocking
