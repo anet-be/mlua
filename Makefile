@@ -195,7 +195,7 @@ test: build test-build
 	set -o pipefail && $(ydb_dist)/yottadb -run run^unittest $(TESTS) | cat
 test-build: tests/mlua.xc tests/db.gld
 tests/mlua.xc:
-	sed -e 's|.*/mlua.so$$|mlua.so|' mlua.xc >tests/mlua.xc
+	sed -e 's|.*/mlua.so$$|./mlua.so|' mlua.xc >tests/mlua.xc
 tests/db.gld tests/db.dat:
 	@echo Creating Test Database
 	rm -f tests/db.gld $(tmpgld)/db.dat

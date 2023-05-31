@@ -64,7 +64,7 @@ YDB>zwrite ^oaks  ;same as Lua command: ydb.dump('^oaks')
 ^oaks("3","shadow")="15"
 
 YDB>do &mlua.lua("dofile 'tree_height.lua'")  ;see file contents below
-YDB>do &mlua.lua("show_oaks( ydb.key('^oaks') )")
+YDB>do &mlua.lua("calc_height( ydb.node('^oaks') )")
 Oak 1 is 5.8m high
 Oak 2 is 7.5m high
 Oak 3 is 15.0m high
@@ -75,13 +75,13 @@ YDB>zwr ^oaks(,"height")
 ^oaks(3,"height")="15.0"
 ```
 
-The function `show_oaks()` fetches data from YDB and calculates oak heights. It is defined in `oakheight.lua` as follows:
+The function `calc_height()` fetches data from YDB and calculates oak heights. It is defined in `tree_height.lua` as follows:
 
 ```lua
-function show_oaks(oaks)
+function calc_height(oaks)
     for sub in oaks:subscripts() do
         oaktree=oaks(sub)
-        height = oaktree('shadow').value * math.tan( math.rad(oaktree('angle').value) )
+        height = oaktree.shadow.__ * math.tan( math.rad(oaktree.angle.__) )
 
         print(string.format('Oak %s is %.1fm high', sub, height))
         oaktree('height').value = height  -- save back into YDB

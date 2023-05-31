@@ -163,7 +163,7 @@ testTreeHeight()
  set expected=$translate(expected,"'$",$C(34)_$C(10)) ;convert ' to ", and $ to newline
  do assert(expected,$$lua("return ydb.dump('^oaks')"))
  do lua("dofile 'tree_height.lua'")
- do lua("show_oaks( ydb.key('^oaks') )")
+ do lua("calc_height( ydb.node('^oaks') )")
  ;Lua <5.3 displays height float 15.0 as 15:
  set expectedHeight=$select(luaVersion<5.3:"15",1:"15.0")
  set expected="^oaks(1,'angle')=30$^oaks(1,'height')=5.7735026918963$^oaks(1,'shadow')=10$^oaks(2,'angle')=30$^oaks(2,'height')=7.5055534994651$^oaks(2,'shadow')=13$^oaks(3,'angle')=45$^oaks(3,'height')="_expectedHeight_"$^oaks(3,'shadow')=15"
