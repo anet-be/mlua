@@ -79,12 +79,10 @@ The function `calc_height()` fetches data from YDB and calculates oak heights. I
 
 ```lua
 function calc_height(oaks)
-    for sub in oaks:subscripts() do
-        oaktree=oaks(sub)
+    for oaktree, _value, index in pairs(oaks) do
         height = oaktree.shadow.__ * math.tan( math.rad(oaktree.angle.__) )
-
-        print(string.format('Oak %s is %.1fm high', sub, height))
-        oaktree('height').value = height  -- save back into YDB
+        print(string.format('Oak %s is %.1fm high', index, height))
+        oaktree.height.__ = height  -- save back into YDB
     end
 end
 ```
