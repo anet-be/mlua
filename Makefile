@@ -196,10 +196,10 @@ test: build test-build
 test-build: tests/mlua.xc tests/db.gld
 tests/mlua.xc:
 	sed -e 's|.*/mlua.so$$|mlua.so|' mlua.xc >tests/mlua.xc
-tests/db.dat: tests/db.gld
-tests/db.gld:
+tests/db.gld tests/db.dat:
 	@echo Creating Test Database
 	rm -f tests/db.gld $(tmpgld)/db.dat
+	mkdir -p $(tmpgld)
 	ydb_gbldir=tests/db.gld   bash tests/createdb.sh $(ydb_dist) $(tmpgld)/db.dat  >/dev/null
 	cp $(tmpgld)/db.dat tests/db.dat  # save it so later tests don't have to recreate it
 benchmarks benchmark: build test-build
