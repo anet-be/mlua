@@ -161,12 +161,12 @@ benchmarkStringProcesses()
  set expect10="8772d22407ac282809a75706f91fab898adea0235f1d304d85c1c48650c283413e533eba63880c51be67e35dfc3433ddbe78e73d459511aaf29251a64a803884"
  set expect1k="7319dbae7e935f940b140f8b9d8e4d5e2509d634fb67041d8828833dcf857cfecda45282b54c0a77e2875185381d95791594dbf1a0f3db5cae71d95617287c18"
  set expect1m="7a0712c75269ad5fbf829e04f116701899bcbefc5f07e4610fbaddf493ee2b917f84f1f0107f0ee95b420efc3c4cd6b687ee944a52351fc0c52eba260b11bed6"
- if '$$lua("return isfile('brocr')") w "Skipping uninstalled shellSHA. To install, run: make",!
+ if '$$lua("return isfile('brocr')") w "Skipping uninstalled shellSHA. To install, run: make anet-benchmarks",!
  else  do benchmarkSizes("shellSHA",200,200,1,expect10,expect1k,expect1m)
  do benchmarkSizes("pureluaSHA",10000,2000,2,expect10,expect1k,expect1m)
  if '$$lua("return pcall(require,'hmac')") w "Skipping uninstalled luaCLibSHA. To install, run: luarocks install hmac",!
  else  do benchmarkSizes("luaCLibSHA",200000,100000,100,expect10,expect1k,expect1m)
- if '$$lua("return isfile('cstrlib.so')") w "Skipping uninstalled cmumpsSHA. To install, run: make",!
+ if '$$lua("return isfile('cstrlib.so')") w "Skipping uninstalled cmumpsSHA. To install, run: make anet-benchmarks",!
  else  do benchmarkSizes("cmumpsSHA",100000,100000,100,expect10,expect1k,expect1m)
 
  set expect10=8
@@ -174,7 +174,7 @@ benchmarkStringProcesses()
  set expect1m=999998
  do benchmarkSizes("luaStripCharsPrm",20000,10000,10,expect10,expect1k,expect1m)
  do benchmarkSizes("luaStripCharsDb",10000,5000,10,expect10,expect1k,expect1m)
- if '$$lua("return isfile('cstrlib.so')") w "Skipping uninstalled cmumpsStripChars. To install, run: make",!
+ if '$$lua("return isfile('cstrlib.so')") w "Skipping uninstalled cmumpsStripChars. To install, run: make anet-benchmarks",!
  else  do benchmarkSizes("cmumpsStripChars",100000,1000,10,expect10,expect1k,expect1m)
  do benchmarkSizes("mStripChars",10000,2000,10,expect10,expect1k,expect1m)
  quit

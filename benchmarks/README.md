@@ -10,6 +10,8 @@ make fetch benchmark
 
 Requirements for some benchmarks are installed by the Makefile. Others will require manual installation of certain Lua modules: for example `luarocks install hmac` to get a SHA library for lua. But running `make` will note these requirements for you.
 
+There are also certain benchmarks, invoked by `make anet-benchmark`, that require access to proprietary repositories of our sponsor, ANET.[^1] You can safely ignore these.
+
 # Comparison with M
 
 Below is a comparison between M and lua-yottadb (v2.1) doing basic loops through the database:

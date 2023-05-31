@@ -201,11 +201,10 @@ tests/db.gld:
 	rm -f tests/db.gld $(tmpgld)/db.dat
 	ydb_gbldir=tests/db.gld   bash tests/createdb.sh $(ydb_dist) $(tmpgld)/db.dat  >/dev/null
 	cp $(tmpgld)/db.dat tests/db.dat  # save it so later tests don't have to recreate it
-benchmarks: benchmark
-benchmark: build
+benchmarks benchmark: build
 	$(MAKE) -C benchmarks
-benchmark-lua-only:
-	$(MAKE) -C benchmarks benchmark-lua-only
+anet-benchmarks:
+	$(MAKE) -C benchmarks anet-benchmarks
 
 #This also tests lua-yottadb with all Lua versions
 testall:
@@ -260,7 +259,7 @@ $(shell mkdir -p build)			# So I don't need to do it in every target
 # (build-lua, at least, needs to be a prerequisite of anything that uses lua header files)
 .PHONY: fetch fetch-lua-yottadb update-lua-yottadb update-mlua fetch-lua-%
 .PHONY: build build-lua-yottadb build-lua-% build-mlua
-.PHONY: benchmarks benchmark-lua-only
+.PHONY: benchmarks anet-benchmarks
 .PHONY: install install-lua
 .PHONY: all test vars
 .PHONY: clean clean-luas clean-lua-% clean-lua-yottadb refresh

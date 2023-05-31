@@ -30,19 +30,20 @@ tmpgld = $(TMPDIR)/mlua-benchmark
 export ydb_gbldir=$(tmpgld).gld
 
 all: fetch benchmark
-benchmarks: benchmark
-benchmark: mlua.xc lua-tools build-benchmark-extras
+benchmarks benchmark: mlua.xc lua-tools
 	rm -f $(tmpgld).gld $(tmpgld).dat
 	bash ../tests/createdb.sh $(YDB_DIST) $(tmpgld).dat >/dev/null 2>&1
 	@# pipe to cat below prevents yottadb weirdly adding linefeeds into some lua stdout messages
 	yottadb -run benchmark $(TESTS) | cat
-# alternative target for users who do not permission to access cmumps or qtechng -- though it won't have anything to compare against
-benchmark-lua-only: mlua.xc lua-tools
-	yottadb -run benchmark
-build-benchmark-extras:
+# alternative target for users who have access to ANET tools cmumps and qtechng
+anet-benchmarks anet: build-benchmark-extras
+	$(MAKE) benchmarks
+build-benchmark-extras: fetch-extras
 	$(MAKE) cmumps build-brocr --no-print-directory || $(MAKE) bad-deps -s
 fetch:
-	$(MAKE) fetch-lua-tools fetch-brocr fetch-cmumps  --no-print-directory || $(MAKE) bad-deps -s
+	$(MAKE) fetch-lua-tools  --no-print-directory
+fetch-extras: fetch
+	$(MAKE) fetch-brocr fetch-cmumps  --no-print-directory || $(MAKE) bad-deps -s
 mlua.xc: ../mlua.xc
 	sed "1 s|.*/mlua.so|../mlua.so|" ../mlua.xc >mlua.xc
 
@@ -53,10 +54,10 @@ bad-deps:
 	&& echo \
 	&& echo "This may have failed because you do not have ssh access to" \
 	&& echo "(proprietary) cmumps and qtechng (from https://www.uantwerpen.be/nl/projecten/anet/brocade/)." \
-	&& echo "If that is the case, you can produce just the MLua benchmarks using 'make benchmark-lua-only'," \
+	&& echo "If that is the case, you can produce just the standard MLua benchmarks using 'make benchmarks'," \
 	&& echo "though you obviously won't be able to compare against those proprietary C and Go benchmarks" \
 	&& echo \
-	&& echo "Try: make benchmark-lua-only" \
+	&& echo "Try: make benchmarks" \
 	&& echo \
 	&& false
 
@@ -97,7 +98,7 @@ cstrlib.so cstrlib.xc: build/cmumps/cstrlib.c
 	$(MAKE) -C build/cmumps
 	cp build/cmumps/cstrlib.so .
 	cp build/cmumps/cstrlib.xc .
-	sed -i "1 s|.*/cstrlib.so|cstrlib.so|" cstrlib.xc
+	sed -i "1 s|.*/cstrlib.so|./cstrlib.so|" cstrlib.xc
 build/cmumps/cstrlib.c:
 	@echo "Fetching cmumps from its Brocade git repository"
 	cd build && git clone git@bitbucket.org:anetbrocade/cmumps.git
@@ -118,8 +119,8 @@ refresh: clean
 	rm -f brocr.go
 	rm -rf build
 
-.PHONY: fetch fetch-lua-tools fetch-brocr fetch-cmumps
-.PHONY: all build-benchmark benchmarks benchmark benchmark.m benchmark.py benchmark-lua-only
+.PHONY: fetch fetch-extras fetch-lua-tools fetch-brocr fetch-cmumps
+.PHONY: all build-benchmark benchmarks benchmark anet-benchmarks anet benchmark.m benchmark.py
 .PHONY: lua-sha cmumps bad-deps build-brocr lua-tools
 .PHONY: clean clean-cmumps
 .SECONDARY: # Prevent deletion of targets
