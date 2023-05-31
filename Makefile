@@ -188,11 +188,12 @@ tmpgld = $(TMPDIR)/mlua-test
 export ydb_gbldir=$(tmpgld)/db.gld
 
 #To run specific tests, do: make test TESTS="testBasics testReadme"
-test: build tests/mlua.xc tests/db.gld
+test: build test-build
 	rm $(tmpgld) -rf  &&  mkdir -p $(tmpgld)
 	cp tests/db.* $(tmpgld)/
 	@# pipe to cat below prevents yottadb mysteriously adding confusing linefeeds in the output
 	set -o pipefail && $(ydb_dist)/yottadb -run run^unittest $(TESTS) | cat
+test-build: tests/mlua.xc tests/db.gld
 tests/mlua.xc:
 	sed -e 's|.*/mlua.so$$|mlua.so|' mlua.xc >tests/mlua.xc
 tests/db.dat: tests/db.gld
@@ -201,9 +202,9 @@ tests/db.gld:
 	rm -f tests/db.gld $(tmpgld)/db.dat
 	ydb_gbldir=tests/db.gld   bash tests/createdb.sh $(ydb_dist) $(tmpgld)/db.dat  >/dev/null
 	cp $(tmpgld)/db.dat tests/db.dat  # save it so later tests don't have to recreate it
-benchmarks benchmark: build
+benchmarks benchmark: build test-build
 	$(MAKE) -C benchmarks
-anet-benchmarks:
+anet-benchmarks: build test-build
 	$(MAKE) -C benchmarks anet-benchmarks
 
 #This also tests lua-yottadb with all Lua versions
