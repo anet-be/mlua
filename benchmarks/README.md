@@ -59,10 +59,10 @@ Now compare with the results from lua-yottadb v2.1 which includes efficiency imp
 
 ```lua
  47x faster:    26 Node creations in     4.9us
-3.6x faster:   Lua ^BCAT("lvd") traversal of 10000 subscripts in     4.0ms
-6.8x faster:   Lua ^BCAT("lvd") traversal of 10000 nodes      in     7.5ms
-4.3x faster:   Lua LBCAT("lvd") traversal of 10000 subscripts in     3.2ms
-8.8x faster:   Lua LBCAT("lvd") traversal of 10000 nodes      in     5.6ms
+4.2x faster:   Lua ^BCAT("lvd") traversal of 10000 subscripts in     3.4ms
+8.1x faster:   Lua ^BCAT("lvd") traversal of 10000 nodes      in     6.3ms
+5.2x faster:   Lua LBCAT("lvd") traversal of 10000 subscripts in     2.6ms
+8.4x faster:   Lua LBCAT("lvd") traversal of 10000 nodes      in     5.9ms
 5.3x faster:   Lua ^var("this","is","a","fair","number","of","subscripts","on","a","glvn") traversal of 10000 subscripts in     4.3ms
  11x faster:   Lua ^var("this","is","a","fair","number","of","subscripts","on","a","glvn") traversal of 10000 nodes      in    10.7ms
 4.9x faster:   Lua lvar("this","is","a","fair","number","of","subscripts","on","a","glvn") traversal of 10000 subscripts in     4.3ms
