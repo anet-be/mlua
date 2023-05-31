@@ -2,6 +2,12 @@
 
 ; Default function
 benchmark()
+ new force set force=$ztrnlnm("benchmark_force")
+ if $extract($zgbldir,1,4)'="/tmp"&(force'=1) do
+ . w "Error: tried to run benchmarks using a database outside /tmp.",!
+ . w "Set 'benchmark_force=1' to force it to clobber the current database at '"_$zgbldir_"'",!
+ . zhalt 1
+
  do init()
  ; if command line given, run only the specified functions
  if $zcmdline'="" w ! do  zhalt 0
