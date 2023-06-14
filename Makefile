@@ -284,7 +284,7 @@ release: rockspec
 	@git merge-base --is-ancestor HEAD master@{upstream} || { echo "Push changes to git first"; exit 1; }
 	rm -f tests/*.o
 	luarocks make --local
-	git tag -a test-v$(shortversion)
+	git tag -a v$(shortversion)
 	git push origin v$(shortversion)
 	#git remote -v | grep "^upstream" && git push upstream v$(shortversion)
 	luarocks pack rockspecs/mlua-$(longversion).rockspec
