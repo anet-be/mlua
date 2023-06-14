@@ -267,7 +267,7 @@ install-lua: build-lua
 # ~~~ Release a new version
 
 longversion=$(shell sed -Ene 's/#define MLUA_VERSION ([0-9]+),([0-9]+),([0-9a-zA-Z_]+).*/\1.\2-\3/p' mlua.h)
-shortversion=$(shell sed -Ene 's/#define MLUA_VERSION ([0-9]+),([0-9]+).*/\1.\2/p' mlua.h)
+tag=v$(shell sed -Ene 's/#define MLUA_VERSION ([0-9]+),([0-9]+).*/\1.\2/p' mlua.h)
 
 # Prevent git from giving detachedHead warning during luarocks pack
 export GIT_CONFIG_COUNT=1
@@ -279,14 +279,16 @@ rockspec:
 	git add rockspecs/mlua-$(longversion).rockspec
 release: rockspec
 	@echo
-	@read -p "About to push MLua git tag v$(shortversion) and create LuaRockspec $(longversion). Continue (y/n)? " -n1 && echo && [ "$$REPLY" = "y" ]
+	@read -p "About to push MLua git tag $(tag) and create LuaRockspec $(longversion). Continue (y/n)? " -n1 && echo && [ "$$REPLY" = "y" ]
 	@git diff --quiet || { echo "Commit changes to git first"; exit 1; }
 	@git merge-base --is-ancestor HEAD master@{upstream} || { echo "Push changes to git first"; exit 1; }
 	rm -f tests/*.o
 	luarocks make --local
-	git tag -a v$(shortversion)
-	git push origin v$(shortversion)
-	#git remote -v | grep "^upstream" && git push upstream v$(shortversion)
+	@git tag -n $(tag) | grep -q ".*" || { \
+		git tag -a $(tag); \
+		git push origin $(tag); \
+		git remote -v | grep "^upstream" && git push upstream $(tag); \
+	}
 	luarocks pack rockspecs/mlua-$(longversion).rockspec
 	luarocks upload --sign $(LRUPFLAGS) rockspecs/mlua-$(longversion).rockspec
 
