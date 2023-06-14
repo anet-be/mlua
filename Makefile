@@ -14,18 +14,30 @@ tmp:=$(subst ., ,$(LUA_BUILD))
 LUA_VERSION:=$(word 1,$(tmp)).$(word 2,$(tmp))
 
 # location to install mlua module to: .so and .lua files, respectively
-LUA_LIB_INSTALL=/usr/local/lib/lua/$(LUA_VERSION)
-LUA_MOD_INSTALL=/usr/local/share/lua/$(LUA_VERSION)
+SYSTEM_PREFIX=/usr/local
+PREFIX=$(SYSTEM_PREFIX)
+LUA_LIB_INSTALL=$(PREFIX)/lib/lua/$(LUA_VERSION)
+LUA_MOD_INSTALL=$(PREFIX)/share/lua/$(LUA_VERSION)
 # Select which version tag of lua-yottadb to fetch
 LUA_YOTTADB_VERSION=master
 LUA_YOTTADB_SOURCE=https://github.com/anet-be/lua-yottadb.git
+
 # Locate YDB install
 ydb_dist?=$(shell pkg-config --variable=prefix yottadb --silence-errors)
 ifeq ($(ydb_dist),)
   $(error Could not find $$ydb_dist; please install yottadb or set $$ydb_dist to your YDB install')
 endif
-YDB_INSTALL:=$(ydb_dist)/plugin
 
+# Determine whether make was called from luarocks using the --local flag (or a prefix within user's $HOME directory)
+# If so, put mlua.so and mlua.xc files into a local directory
+YDB_INSTALL:=$(ydb_dist)/plugin
+local:=$(shell echo "$(PREFIX)" | grep -q "^$(HOME)" && echo 1)
+ifeq ($(local),1)
+  YDB_INSTALL:=$(PREFIX)/.yottadb/plugin
+endif
+
+# LuaRocks upload flags. Set to LRUPFLAGS=--force to overwrite existing rock or LRUPFLAGS=--api-key=<key> as needed
+LRUPFLAGS:=
 
 
 # ~~~  Internal variables
@@ -156,8 +168,9 @@ allvars:
 
 # clean just our own mlua build
 clean: clean-lua-yottadb
-	rm -f *.o *.so try tests/db.* tests/mlua.xc
+	rm -f *.o *.so try tests/db.* tests/mlua.xc tests/*.o
 	rm -rf deploy
+	rm mlua-*.rock
 	$(MAKE) -C benchmarks clean  --no-print-directory
 # clean everything we've built
 cleanall: clean clean-luas clean-lua-yottadb
@@ -228,26 +241,55 @@ YDB_DEPLOYMENTS=mlua.so mlua.xc
 LUA_LIB_DEPLOYMENTS=_yottadb.so
 LUA_MOD_DEPLOYMENTS=yottadb.lua
 install: build
-	@echo "Installing files to '$(YDB_INSTALL)', '$(LUA_LIB_INSTALL)', and '$(LUA_MOD_INSTALL)'"
-	@echo "If you prefer to install to a local (non-system) deployment folder, run 'make install-local'"
-	$(BECOME_ROOT) install -m644 -D $(YDB_DEPLOYMENTS) -t $(YDB_INSTALL)
-	$(BECOME_ROOT) install -m644 -D $(LUA_LIB_DEPLOYMENTS) -t $(LUA_LIB_INSTALL)
-	$(BECOME_ROOT) install -m644 -D $(LUA_MOD_DEPLOYMENTS) -t $(LUA_MOD_INSTALL)
-install-local: build
-	mkdir -p deploy/ydb deploy/lua-lib deploy/lua-mod
-	install -m644 -D $(YDB_DEPLOYMENTS) -t deploy/ydb
-	install -m644 -D $(LUA_LIB_DEPLOYMENTS) -t deploy/lua-lib
-	install -m644 -D $(LUA_MOD_DEPLOYMENTS) -t deploy/lua-mod
+	@[ "$(PREFIX)" == "$(SYSTEM_PREFIX)" ] \
+		&& echo "Installing files to '$(YDB_INSTALL)', '$(LUA_LIB_INSTALL)', and '$(LUA_MOD_INSTALL)'" \
+		&& echo "If you prefer to install to a local (non-system) deployment folder, run 'make install-local'" \
+		&& echo || true
+	@echo PREFIX=$(PREFIX)
+	mkdir -p $(YDB_INSTALL) $(LUA_LIB_INSTALL) $(LUA_MOD_INSTALL)
+	install -m644 -D $(YDB_DEPLOYMENTS) -t $(YDB_INSTALL)
+	install -m644 -D $(LUA_LIB_DEPLOYMENTS) -t $(LUA_LIB_INSTALL)
+	install -m644 -D $(LUA_MOD_DEPLOYMENTS) -t $(LUA_MOD_INSTALL)
+install-local: PREFIX:=deploy
+install-local: YDB_INSTALL:=$(PREFIX)/ydb
+install-local: install
 install-lua: build-lua
-	@echo Installing Lua $(LUA_BUILD) to your system
-	$(BECOME_ROOT) $(MAKE) -C build/lua-$(LUA_BUILD)  install
-	$(BECOME_ROOT) mv /usr/local/bin/lua /usr/local/bin/lua$(LUA_VERSION)
-	$(BECOME_ROOT) mv /usr/local/bin/luac /usr/local/bin/luac$(LUA_VERSION)
+	@echo "Installing Lua $(LUA_BUILD) to your system at `realpath $(PREFIX)`"
+	install -m755 -DT build/lua-$(LUA_BUILD)/install/bin/lua $(PREFIX)/bin/lua$(LUA_VERSION)
+	install -m755 -DT build/lua-$(LUA_BUILD)/install/bin/luac $(PREFIX)/bin/luac$(LUA_VERSION)
 	@echo
-	@echo "*** Note ***: Lua is now installed as /usr/local/bin/lua$(LUA_VERSION)."
+	@echo "*** Note ***: Lua is now installed as $(PREFIX)/bin/lua$(LUA_VERSION)."
 	@echo "If you want it as your main Lua, symlink it like this (assuming ~/bin is in your path):"
-	@echo "  $(BECOME_ROOT) ln -s /usr/local/bin/lua$(LUA_VERSION) ~/bin/lua"
+	@echo "  sudo ln -s $(PREFIX)/bin/lua$(LUA_VERSION) ~/bin/lua"
 	@echo
+
+
+# ~~~ Release a new version
+
+longversion=$(shell sed -Ene 's/#define MLUA_VERSION ([0-9]+),([0-9]+),([0-9a-zA-Z_]+).*/\1.\2-\3/p' mlua.h)
+shortversion=$(shell sed -Ene 's/#define MLUA_VERSION ([0-9]+),([0-9]+).*/\1.\2/p' mlua.h)
+
+# Prevent git from giving detachedHead warning during luarocks pack
+export GIT_CONFIG_COUNT=1
+export GIT_CONFIG_KEY_0=advice.detachedHead
+export GIT_CONFIG_VALUE_0=false
+
+rockspec:
+	sed -Ee "s/(version += +['\"]).*(['\"].*)/\1$(longversion)\2/" rockspecs/mlua.rockspec.template >rockspecs/mlua-$(longversion).rockspec
+	git add rockspecs/mlua-$(longversion).rockspec
+release: rockspec
+	@echo
+	@read -p "About to push MLua git tag v$(shortversion) and create LuaRockspec $(longversion). Continue (y/n)? " -n1 && echo && [ "$$REPLY" = "y" ]
+	@git diff --quiet || { echo "Commit changes to git first"; exit 1; }
+	@git merge-base --is-ancestor HEAD master@{upstream} || { echo "Push changes to git first"; exit 1; }
+	rm -f tests/*.o
+	luarocks make --local
+	git tag -a test-v$(shortversion)
+	git push origin v$(shortversion)
+	#git remote -v | grep "^upstream" && git push upstream v$(shortversion)
+	luarocks pack rockspecs/mlua-$(longversion).rockspec
+	luarocks upload --sign $(LRUPFLAGS) rockspecs/mlua-$(longversion).rockspec
+
 
 $(shell mkdir -p build)			# So I don't need to do it in every target
 
@@ -262,5 +304,6 @@ $(shell mkdir -p build)			# So I don't need to do it in every target
 .PHONY: build build-lua-yottadb build-lua-% build-mlua
 .PHONY: benchmarks anet-benchmarks
 .PHONY: install install-lua
+.PHONY: rockspec release
 .PHONY: all test vars
 .PHONY: clean clean-luas clean-lua-% clean-lua-yottadb refresh

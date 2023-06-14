@@ -165,7 +165,7 @@ To install MLua itself:
 ```shell
 git clone `<mlua repository>` mlua
 cd mlua && make
-make install       # install MLua
+sudo make install       # install MLua
 ```
 
 ### Explanation
@@ -179,7 +179,7 @@ Here's what is going on in the installation above:
 If you also want to install the Lua version you just built into your system, do:
 
 ```shell
-make install-lua
+sudo make install-lua
 ```
 
 You may also need to double-check that /usr/local/bin is in your path and/or run `hash lua` to refresh bash's cached PATH so it can find the new /usr/local/bin/lua.
@@ -187,7 +187,7 @@ You may also need to double-check that /usr/local/bin is in your path and/or run
 If you need to use a different Lua version or install into a non-standard YDB directory, change the last line to something like:
 
 ```shell
-make install LUA_BUILD=5.x.x YDB_DEST=<your_ydb_plugin_directory> LUA_LIB_INSTALL=/usr/local/lib/lua/x.x LUA_MOD_INSTALL=/usr/local/share/lua/x.x
+make install LUA_BUILD=5.x.x YDB_DEST=<your_ydb_plugin_directory> PREFIX=~/.local
 ```
 
 MLua is implemented as a shared library mlua.so which also embeds Lua and the Lua library. There is no need to install Lua separately.
@@ -218,7 +218,7 @@ make install
 
 
 
-## TESTING
+## Testing
 
 To test MLua, simply type:
 
@@ -233,6 +233,18 @@ make benchmark
 ```
 
 Some benchmarks are installed by the Makefile. Others will require manual installation of certain Lua modules: for example `luarocks install hmac` to get a SHA library for lua. But running `make benchmarks` will note these requirements for you. There is further comment on these benchmarks in the [benchmarks/README.md](benchmarks/README.md).
+
+## Release
+
+To release a new version of MLua:
+
+- Test it first.
+- Update the version number in `mlua.h` and the version history that precedes it.
+- To create a version tag in git and create a LuaRock, run:
+
+```shell
+make release
+```
 
 ## Technical details
 
