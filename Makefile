@@ -27,17 +27,17 @@ ydb_dist?=$(shell pkg-config --variable=prefix yottadb --silence-errors)
 ifeq ($(ydb_dist),)
   $(error Could not find $$ydb_dist; please install yottadb or set $$ydb_dist to your YDB install')
 endif
+YDB_INSTALL:=$(ydb_dist)/plugin
 
 # Determine whether make was called from luarocks using the --local flag (or a prefix within user's $HOME directory)
 # If so, put mlua.so and mlua.xc files into a local directory
-YDB_INSTALL:=$(ydb_dist)/plugin
-local:=$(shell echo "$(PREFIX)" | grep -q "^$(HOME)" && echo 1)
+local:=$(shell echo "$(LUAROCKS_PREFIX)" | grep -q "^$(HOME)" && echo 1)
 ifeq ($(local),1)
   YDB_INSTALL:=$(PREFIX)/.yottadb/plugin
 endif
 
-# LuaRocks upload flags. Set to LRUPFLAGS=--force to overwrite existing rock or LRUPFLAGS=--api-key=<key> as needed
-LRUPFLAGS:=
+# LuaRocks upload flags. Set to LRFLAGS=--force to overwrite existing rock or LRFLAGS=--api-key=<key> as needed
+LRFLAGS:=
 
 
 # ~~~  Internal variables
@@ -263,11 +263,20 @@ install-lua: build-lua
 	@echo "  sudo ln -s $(PREFIX)/bin/lua$(LUA_VERSION) ~/bin/lua"
 	@echo
 
+remove:
+	rm -f $(foreach i,$(YDB_DEPLOYMENTS),$(YDB_INSTALL)/$(i))
+	rm -f $(foreach i,$(LUA_LIB_DEPLOYMENTS),$(LUA_LIB_INSTALL)/$(i))
+	rm -f $(foreach i,$(LUA_MOD_DEPLOYMENTS),$(LUA_MOD_INSTALL)/$(i))
+remove-lua:
+	rm -f $(PREFIX)/bin/lua$(LUA_VERSION)/lua
+	rm -f $(PREFIX)/bin/lua$(LUA_VERSION)/luac
+
 
 # ~~~ Release a new version
 
-longversion=$(shell sed -Ene 's/#define MLUA_VERSION ([0-9]+),([0-9]+),([0-9a-zA-Z_]+).*/\1.\2-\3/p' mlua.h)
-tag=v$(shell sed -Ene 's/#define MLUA_VERSION ([0-9]+),([0-9]+).*/\1.\2/p' mlua.h)
+#Fetch MLua version from mlua.h. You can override this with "VERSION=x.y-z" to regenerate a specific rockspec
+VERSION=$(shell sed -Ene 's/#define MLUA_VERSION ([0-9]+),([0-9]+),([0-9a-zA-Z_]+).*/\1.\2-\3/p' mlua.h)
+tag=v$(shell echo $(VERSION) | grep -Eo '[0-9]+.[0-9]+')
 
 # Prevent git from giving detachedHead warning during luarocks pack
 export GIT_CONFIG_COUNT=1
@@ -275,13 +284,14 @@ export GIT_CONFIG_KEY_0=advice.detachedHead
 export GIT_CONFIG_VALUE_0=false
 
 rockspec:
-	sed -Ee "s/(version += +['\"]).*(['\"].*)/\1$(longversion)\2/" rockspecs/mlua.rockspec.template >rockspecs/mlua-$(longversion).rockspec
-	git add rockspecs/mlua-$(longversion).rockspec
+	@echo Creating MLua rockspec $(VERSION)
+	sed -Ee "s/(version += +['\"]).*(['\"].*)/\1$(VERSION)\2/" rockspecs/mlua.rockspec.template >rockspecs/mlua-$(VERSION).rockspec
 release: rockspec
 	@echo
-	@read -p "About to push MLua git tag $(tag) and create LuaRockspec $(longversion). Continue (y/n)? " -n1 && echo && [ "$$REPLY" = "y" ]
+	@read -p "About to push MLua git tag $(tag) with rockspec $(VERSION). Continue (y/n)? " -n1 && echo && [ "$$REPLY" = "y" ]
 	@git diff --quiet || { echo "Commit changes to git first"; exit 1; }
 	@git merge-base --is-ancestor HEAD master@{upstream} || { echo "Push changes to git first"; exit 1; }
+	git add rockspecs/mlua-$(VERSION).rockspec
 	rm -f tests/*.o
 	luarocks make --local
 	@git tag -n $(tag) | grep -q ".*" || { \
@@ -289,9 +299,9 @@ release: rockspec
 		git push origin $(tag); \
 		git remote -v | grep "^upstream" && git push upstream $(tag); \
 	}
-	luarocks pack rockspecs/mlua-$(longversion).rockspec
-	luarocks upload --sign $(LRUPFLAGS) rockspecs/mlua-$(longversion).rockspec
-
+	luarocks pack rockspecs/mlua-$(VERSION).rockspec
+	luarocks upload $(LRFLAGS) rockspecs/mlua-$(VERSION).rockspec \
+		|| { echo "Try 'make release LRFLAGS=--api-key=<key>'"; exit 2; }
 
 $(shell mkdir -p build)			# So I don't need to do it in every target
 
