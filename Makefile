@@ -33,6 +33,7 @@ YDB_INSTALL:=$(ydb_dist)/plugin
 # If so, put mlua.so and mlua.xc files into a local directory
 local:=$(shell echo "$(LUAROCKS_PREFIX)" | grep -q "^$(HOME)" && echo 1)
 ifeq ($(local),1)
+  PREFIX:=$(LUAROCKS_PREFIX)
   YDB_INSTALL:=$(PREFIX)/.yottadb/plugin
 endif
 
@@ -293,7 +294,7 @@ release: rockspec
 	@git merge-base --is-ancestor HEAD master@{upstream} || { echo "Push changes to git first"; exit 1; }
 	git add rockspecs/mlua-$(VERSION).rockspec
 	rm -f tests/*.o
-	luarocks make --local
+	luarocks make --local  # test that basic make works first
 	@git tag -n $(tag) | grep -q ".*" || { \
 		git tag -a $(tag); \
 		git push origin $(tag); \
