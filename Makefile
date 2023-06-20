@@ -295,7 +295,7 @@ release: rockspec
 	git add rockspecs/mlua-$(VERSION).rockspec
 	rm -f tests/*.o
 	luarocks make --local  # test that basic make works first
-	@git tag -n $(tag) | grep -q ".*" || { \
+	git tag -n $(tag) | grep -q ".*" || { \
 		git tag -a $(tag); \
 		git push origin $(tag); \
 		git remote -v | grep "^upstream" && git push upstream $(tag); \
