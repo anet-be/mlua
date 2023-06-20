@@ -294,6 +294,7 @@ release: rockspec
 	@git merge-base --is-ancestor HEAD master@{upstream} || { echo "Push changes to git first"; exit 1; }
 	git add rockspecs/mlua-$(VERSION).rockspec
 	rm -f tests/*.o
+	luarocks make --local  # test that basic make works first
 	@git tag -n $(tag) | grep -q ".*" || { \
 		git tag -a $(tag); \
 		git push origin $(tag); \
