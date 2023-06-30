@@ -32,7 +32,7 @@ build = {
       LUAROCKS_PREFIX='$(PREFIX)',  -- let Makefile know where Lua wants it installed so it can detect --local flag
       -- Don't set PREFIX='$(PREFIX)' because MLua needs its binaries to be in the system's Lua path. I don't really understand why luarocks sets its PREFIX to non-path locations
    },
-   copy_directories = {'tests'},
+   copy_directories = {'tests', 'docs'},
 }
 dependencies = {
    --'lua >= 5.1',  -- MLua does not depend on any particular Lua version as it builds its own one into mlua.so
