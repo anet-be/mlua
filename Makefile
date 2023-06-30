@@ -273,7 +273,7 @@ remove-lua:
 	rm -f $(PREFIX)/bin/lua$(LUA_VERSION)/luac
 
 
-# ~~~ Release a new version
+# ~~~ Release a new version and create luarock
 
 #Fetch MLua version from mlua.h. You can override this with "VERSION=x.y-z" to regenerate a specific rockspec
 VERSION=$(shell sed -Ene 's/#define MLUA_VERSION ([0-9]+),([0-9]+),([0-9a-zA-Z_]+).*/\1.\2-\3/p' mlua.h)
@@ -284,25 +284,28 @@ export GIT_CONFIG_COUNT=1
 export GIT_CONFIG_KEY_0=advice.detachedHead
 export GIT_CONFIG_VALUE_0=false
 
-rockspec:
+rockspec: rockspecs/mlua.rockspec.template
 	@echo Creating MLua rockspec $(VERSION)
 	sed -Ee "s/(version += +['\"]).*(['\"].*)/\1$(VERSION)\2/" rockspecs/mlua.rockspec.template >rockspecs/mlua-$(VERSION).rockspec
 release: rockspec
+	git add rockspecs/mlua-$(VERSION).rockspec
+	@git diff --quiet || { echo "Commit changes to git first"; exit 1; }
 	@echo
 	@read -p "About to push MLua git tag $(tag) with rockspec $(VERSION). Continue (y/n)? " -n1 && echo && [ "$$REPLY" = "y" ]
-	@git diff --quiet || { echo "Commit changes to git first"; exit 1; }
 	@git merge-base --is-ancestor HEAD master@{upstream} || { echo "Push changes to git first"; exit 1; }
-	git add rockspecs/mlua-$(VERSION).rockspec
 	rm -f tests/*.o
 	luarocks make --local  # test that basic make works first
-	git tag -n $(tag) | grep -q ".*" || { \
-		git tag -a $(tag); \
-		git push origin $(tag); \
-		git remote -v | grep "^upstream" && git push upstream $(tag); \
-	}
+	! git tag -n $(tag) | grep -q ".*" || { echo "Tag $(tag) already exists. Run 'make untag' to remove the git tag first"; exit 1; }
+	git tag -a $(tag)
+	git push origin $(tag)
+	git remote -v | grep "^upstream" && git push upstream $(tag)
 	luarocks pack rockspecs/mlua-$(VERSION).rockspec
 	luarocks upload $(LRFLAGS) rockspecs/mlua-$(VERSION).rockspec \
 		|| { echo "Try 'make release LRFLAGS=--api-key=<key>'"; exit 2; }
+untag:
+	git tag -d $(tag)
+	git push -d origin $(tag)
+	git remote -v | grep "^upstream" && git push -d upstream $(tag)
 
 $(shell mkdir -p build)			# So I don't need to do it in every target
 
@@ -317,6 +320,6 @@ $(shell mkdir -p build)			# So I don't need to do it in every target
 .PHONY: build build-lua-yottadb build-lua-% build-mlua
 .PHONY: benchmarks anet-benchmarks
 .PHONY: install install-lua
-.PHONY: rockspec release
+.PHONY: rockspec release untag
 .PHONY: all test vars
 .PHONY: clean clean-luas clean-lua-% clean-lua-yottadb refresh
