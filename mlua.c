@@ -24,7 +24,8 @@
 
 #define DEFAULT_OUTPUT stdout
 
-// If lua-yottadb ever changes to call ydb with threading calls, change the following to pthread_sigmask() and compile+link with -pthread option
+// If lua-yottadb ever changes to call ydb with threading calls, change the following to pthread_sigmask() and compile+link with -pthread option,
+// cf. main documentation README.me on Thread Safety
 #define SIGPROCMASK(how,set,oldset) sigprocmask((how),(set),(oldset))
 // List of signals that YDB can trigger which we don't interrupting MLua slow IO reads/writes
 // Note that SIGALRM is handled separately so is not listed here
@@ -367,9 +368,7 @@ done:
 }
 
 // Run Lua code
-// If luaState_handle is 0 or not supplied, use the default lua_State (opening it if needed),
-//    but be aware that any threaded app (e.g. a C app linked into to ydb)
-//    must not call the same lua_State from multiple threads
+// If luaState_handle is 0 or not supplied, use the default lua_State (opening it if needed)
 // return 0 on success and return a string representation of the return value in .output (if supplied) or on stdout
 // return <0 on error and return the error message in .output (if supplied) or on stdout
 gtm_int_t mlua_lua(int argc, const gtm_string_t *code, gtm_string_t *output, gtm_long_t luaState_handle, ...) {
