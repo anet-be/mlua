@@ -207,6 +207,22 @@ $ ls -1 /usr/local/share/lua/*/yottadb.* /usr/local/lib/lua/*/_yottadb.*
 
 The ydb_env_set script provided by YDB, automatically provides the environment variables needed for YDB to access any plugin installed in the plugin directory shown here. For old releases of the database you may need to provide ydb_xc_mlua environment variable explicitly.
 
+### Shared vs Embedded
+
+By default, `make` embeds the entire Lua into `mlua.so` so that it is entirely self-contained. However, some may prefer to build Lua as a shared library (for example, if you want to share the library you built Apache's `mod_lua` with). In that case, you can build `libluaX.Y.so` with this:
+
+```shell
+make SHARED_LUA=yes
+```
+
+After the above, `sudo make install` will also copy `libluaX.Y.so` to `/usr/local/lib` (you can alter that path by appending `LIB_INSTALL=<path>`).
+
+Alternatively, if you already have a `libluaX.Y.so` on your system, you can specify the path to that shared library like this:
+
+```shell
+make SHARED_LUA=/usr/local/lib/liblua5.4.so
+```
+
 ### Updating MLua
 
 To update both MLua and lua-yottadb from the internet and build+install:
@@ -215,8 +231,6 @@ To update both MLua and lua-yottadb from the internet and build+install:
 make update
 make install
 ```
-
-
 
 ## Testing
 

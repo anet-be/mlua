@@ -3,6 +3,11 @@
 
 # ~~~ Variables of interest to user
 
+# Set this to create shared libluaX.Y.so instead of embedded in mlua.so
+# Blank means 'no'. User can set to 'yes' to create liblua or use the system's preexisting shared libluaX.Y.so by setting to its full path
+# A shared library version may be needed, for example, to build apache's mod_lua so that it uses the same libluaX.Y.so
+SHARED_LUA:=
+
 # Select which specific version of lua to download and build MLua against, eg: 5.4.4, 5.3.6, 5.2.4
 # MLua works with lua >=5.2; older versions have not been tested
 LUA_BUILD:=5.4.4
@@ -13,14 +18,17 @@ tmp:=$(subst ., ,$(LUA_BUILD))
 # then pick 1st number second number and put a dot between
 LUA_VERSION:=$(word 1,$(tmp)).$(word 2,$(tmp))
 
+# Select which version tag of lua-yottadb to fetch
+LUA_YOTTADB_VERSION=master
+LUA_YOTTADB_SOURCE=https://github.com/anet-be/lua-yottadb.git
+
 # location to install mlua module to: .so and .lua files, respectively
 SYSTEM_PREFIX=/usr/local
 PREFIX=$(SYSTEM_PREFIX)
 LUA_LIB_INSTALL=$(PREFIX)/lib/lua/$(LUA_VERSION)
 LUA_MOD_INSTALL=$(PREFIX)/share/lua/$(LUA_VERSION)
-# Select which version tag of lua-yottadb to fetch
-LUA_YOTTADB_VERSION=master
-LUA_YOTTADB_SOURCE=https://github.com/anet-be/lua-yottadb.git
+# LIB_INSTALL is only used if a libluaX.Y.so file is created
+LIB_INSTALL=$(PREFIX)/lib
 
 # Locate YDB install
 ydb_dist?=$(shell pkg-config --variable=prefix yottadb --silence-errors)
@@ -43,7 +51,21 @@ LRFLAGS:=
 
 # ~~~  Internal variables
 
-LIBLUA = build/lua-$(LUA_BUILD)/install/lib/liblua.a
+# Flags for when liblua is embedded (then include entire liblua.a into mlua.so)
+LIBLUA := build/lua-$(LUA_BUILD)/install/lib/liblua.a
+EMBED_FLAGS := -Wl,--whole-archive  $(LIBLUA)  -Wl,--no-whole-archive
+# Flags for when liblua is shared
+LIBLUA_SO := liblua$(LUA_VERSION).so
+ifneq ($(SHARED_LUA), yes)
+ $(shell rm -f $(LIBLUA_SO))  # ensure old local build doesn't cause confusion
+ ifdef SHARED_LUA
+  LIBLUA_SO := $(SHARED_LUA)
+ endif
+endif
+SHARED_FLAGS := -L "$(dir $LIBLUA_SO)" -l:"$(notdir $(LIBLUA_SO))"
+# Select embed/shared option
+MLUA_FLAGS := $(if $(SHARED_LUA), $(SHARED_FLAGS), $(EMBED_FLAGS))
+
 YDB_INCLUDES = $(shell pkg-config --cflags yottadb)
 LUA_INCLUDES = -Ibuild/lua-$(LUA_BUILD)/install/include
 LUA_YOTTADB_INCLUDES = -I../lua-$(LUA_BUILD)/install/include
@@ -72,9 +94,8 @@ update-mlua:
 	git pull --rebase
 mlua.o: mlua.c .ARG~LUA_BUILD build-lua
 	$(CC) -c $<  -o $@ $(CFLAGS) $(LDFLAGS)
-mlua.so: mlua.o
-	@# include entire liblua.a into mlua.so so we can call entire lua API
-	$(CC) $< -o $@  -shared  -Wl,--whole-archive  $(LIBLUA)  -Wl,--no-whole-archive
+mlua.so: mlua.o  $(if $(SHARED_LUA), $(LIBLUA_SO))
+	$(CC) $< -o $@  -shared  $(MLUA_FLAGS)
 
 %: %.c *.h mlua.so .ARG~LUA_BUILD build-lua			# Just to help build my own temporary test.c files
 	$(CC) $< -o $@  $(CFLAGS) $(LDFLAGS)
@@ -83,18 +104,25 @@ mlua.so: mlua.o
 # ~~~ Lua: fetch lua versions and build them
 
 # Set LUA_BUILD_TARGET to 'linux' or if LUA_BUILD >= 5.4.0, build target is 'linux-readline'
+# readline is demanded only by lua <5.4 but override to included in all versions -- handy if we install this lua to the system
 LUA_BUILD_TARGET:=linux$(shell echo -e " 5.4.0 \n $(LUA_BUILD) " | sort -CV && echo -readline)
 # Switch on -fPIC in the only way that works with Lua Makefiles 5.1 through 5.4
-LUA_CC:=$(CC) -fPIC
+# Set -std=gnu99 for Lua versions >=5.3, matching Lua's own Makefile
+LUA_CC:=$(CC) -fPIC  $(shell echo -e " 5.3 \n $(LUA_VERSION) " | sort -CV && echo -std=gnu99)
 
 fetch-lua: fetch-lua-$(LUA_BUILD) fetch-readline
 build-lua: build-lua-$(LUA_BUILD)
 fetch-lua-%: build/lua-%/Makefile ;
-build-lua-%: build/lua-%/install/lib/liblua.a ;
+build-lua-%: build/lua-%/install/lib/liblua.a  $(if $(SHARED_LUA), $(LIBLUA_SO)) ;
+
+$(LIBLUA_SO): build/lua-$(LUA_BUILD)/install/lib/$(LIBLUA_SO)
+	cp $< $@
+build/lua-%/install/lib/$(LIBLUA_SO): build/lua-%/install/lib/liblua.a
+	$(CC) -o $@  -shared  -Wl,--soname,$(LIBLUA_SO),--whole-archive  $<  -Wl,--no-whole-archive
+
 build/lua-%/install/lib/liblua.a: build/lua-%/Makefile
 	@echo Building $@
 	@# tweak the standard Lua build with flags to make sure we can make a shared library (-fPIC)
-	@# readline demanded only by lua <5.4 but override to included in all versions -- handy if we install this lua to the system
 	$(MAKE) -C build/lua-$*  $(LUA_BUILD_TARGET)  CC="$(LUA_CC)"
 	$(MAKE) -C build/lua-$*  install  INSTALL_TOP=../install
 	@echo
@@ -128,7 +156,7 @@ build-lua-yottadb: _yottadb.so yottadb.lua
 update-lua-yottadb: build/lua-yottadb/Makefile
 	git -C build/lua-yottadb remote set-url origin $(LUA_YOTTADB_SOURCE)
 	git -C build/lua-yottadb pull --rebase
-build/lua-yottadb/_yottadb.so: build/lua-yottadb/Makefile $(wildcard build/lua-yottadb/*.[ch]) .ARG~LUA_BUILD build-lua                # Depends on lua build because CFLAGS includes lua's .h files
+build/lua-yottadb/_yottadb.so: build/lua-yottadb/Makefile $(wildcard build/lua-yottadb/*.[ch]) .ARG~LUA_BUILD build-lua                # Depends on build-lua because CFLAGS includes lua's .h files
 	@echo Building $@
 	$(MAKE) -C build/lua-yottadb _yottadb.so CFLAGS="$(LUA_YOTTADB_CFLAGS)" lua=../lua-$(LUA_BUILD)/install/bin/lua --no-print-directory
 _yottadb.so: build/lua-yottadb/_yottadb.so
@@ -156,13 +184,18 @@ clean-lua-yottadb:
 
 # ~~~ Debug
 
+# Define a newline macro -- only way to use use \n in info output. Note: needs two newlines after 'define' line
+define \n
+
+
+endef
+
 # Print out all variables defined in this makefile
-# Warning: these don't work if a variable contains single quotes
 vars:
-	@echo -e $(foreach v,$(.VARIABLES),$(if $(filter file, $(origin $(v)) ), '\n$(v)=$(value $(v))') )
+	$(info $(foreach v,$(.VARIABLES),$(if $(filter file, $(origin $(v)) ), $(\n)$(v)=$(value $(v))) ))
 # Print all vars including those defined by make itself and environment variables
 allvars:
-	@echo -e $(foreach v,"$(.VARIABLES)", '\n$(v)=$(value $(v))' )
+	$(info $(foreach v,$(.VARIABLES), $(\n)$(v)=$(value $(v)) ))
 
 
 # ~~~ Clean
@@ -171,12 +204,12 @@ allvars:
 clean: clean-lua-yottadb
 	rm -f *.o *.so try tests/db.* tests/mlua.xc tests/*.o
 	rm -rf deploy
-	rm mlua-*.rock
+	rm -f mlua-*.rock
 	$(MAKE) -C benchmarks clean  --no-print-directory
 # clean everything we've built
-cleanall: clean clean-luas clean-lua-yottadb
-# clean & wipe build directory, including external downloads -- as if we'd only just now checked out the mlua source for the first time
-refresh: clean
+cleaner: clean clean-luas clean-lua-yottadb
+# clean & wipe build directory, including external downloads -- as if we'd only just now cloned the mlua source for the first time
+cleanest: clean
 	rm -rf build
 	$(MAKE) -C benchmarks refresh  --no-print-directory
 
@@ -247,10 +280,13 @@ install: build
 		&& echo "If you prefer to install to a local (non-system) deployment folder, run 'make install-local'" \
 		&& echo || true
 	@echo PREFIX=$(PREFIX)
-	mkdir -p $(YDB_INSTALL) $(LUA_LIB_INSTALL) $(LUA_MOD_INSTALL)
 	install -m644 -D $(YDB_DEPLOYMENTS) -t $(YDB_INSTALL)
-	install -m644 -D $(LUA_LIB_DEPLOYMENTS) -t $(LUA_LIB_INSTALL)
 	install -m644 -D $(LUA_MOD_DEPLOYMENTS) -t $(LUA_MOD_INSTALL)
+	install -m644 -D $(LUA_LIB_DEPLOYMENTS) -t $(LUA_LIB_INSTALL)
+ ifneq (,$(wildcard $(notdir $(LIBLUA_SO))))  # copy only if $LIBLUA_SO file exists:
+	install -m644 -D $(LIBLUA_SO) -t $(LIB_INSTALL) && ldconfig
+ endif
+
 install-local: PREFIX:=deploy
 install-local: YDB_INSTALL:=$(PREFIX)/ydb
 install-local: install
@@ -262,6 +298,7 @@ install-lua: build-lua
 	@echo "*** Note ***: Lua is now installed as $(PREFIX)/bin/lua$(LUA_VERSION)."
 	@echo "If you want it as your main Lua, symlink it like this (assuming ~/bin is in your path):"
 	@echo "  sudo ln -s $(PREFIX)/bin/lua$(LUA_VERSION) ~/bin/lua"
+	@echo "However, it is built as Position Independent Code (PIC), so it may be ever so slightly slower than the system lua."
 	@echo
 
 remove:
