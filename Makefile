@@ -23,8 +23,9 @@ LUA_YOTTADB_VERSION=master
 LUA_YOTTADB_SOURCE=https://github.com/anet-be/lua-yottadb.git
 
 # location to install mlua module to: .so and .lua files, respectively
-SYSTEM_PREFIX=/usr/local
+# to change installation directory, do: 'make PREFIX=<dir> YDB_INSTALL=<ydb_dir>'
 PREFIX=$(SYSTEM_PREFIX)
+SYSTEM_PREFIX=/usr/local
 LUA_LIB_INSTALL=$(PREFIX)/lib/lua/$(LUA_VERSION)
 LUA_MOD_INSTALL=$(PREFIX)/share/lua/$(LUA_VERSION)
 # LIB_INSTALL is only used if a libluaX.Y.so file is created
@@ -59,10 +60,11 @@ LIBLUA_SO := liblua$(LUA_VERSION).so
 ifneq ($(SHARED_LUA), yes)
  $(shell rm -f $(LIBLUA_SO))  # ensure old local build doesn't cause confusion
  ifdef SHARED_LUA
+  SHARED_LUA_SUPPLIED=true
   LIBLUA_SO := $(SHARED_LUA)
  endif
 endif
-SHARED_FLAGS := -L "$(dir $LIBLUA_SO)" -l:"$(notdir $(LIBLUA_SO))"
+SHARED_FLAGS := -L "$(dir $(LIBLUA_SO))" -l:"$(notdir $(LIBLUA_SO))"
 # Select embed/shared option
 MLUA_FLAGS := $(if $(SHARED_LUA), $(SHARED_FLAGS), $(EMBED_FLAGS))
 
@@ -115,10 +117,12 @@ build-lua: build-lua-$(LUA_BUILD)
 fetch-lua-%: build/lua-%/Makefile ;
 build-lua-%: build/lua-%/install/lib/liblua.a  $(if $(SHARED_LUA), $(LIBLUA_SO)) ;
 
-$(LIBLUA_SO): build/lua-$(LUA_BUILD)/install/lib/$(LIBLUA_SO)
+ifndef SHARED_LUA_SUPPLIED
+ $(LIBLUA_SO): build/lua-$(LUA_BUILD)/install/lib/$(LIBLUA_SO)
 	cp $< $@
-build/lua-%/install/lib/$(LIBLUA_SO): build/lua-%/install/lib/liblua.a
-	$(CC) -o $@  -shared  -Wl,--soname,$(LIBLUA_SO),--whole-archive  $<  -Wl,--no-whole-archive
+ build/lua-%/install/lib/$(LIBLUA_SO): build/lua-%/install/lib/liblua.a
+	$(CC) -o $@  -shared  -Wl,--whole-archive  $<  -Wl,--no-whole-archive
+endif
 
 build/lua-%/install/lib/liblua.a: build/lua-%/Makefile
 	@echo Building $@
