@@ -60,8 +60,11 @@ LIBLUA_SO := liblua$(LUA_VERSION).so
 ifneq ($(SHARED_LUA), yes)
  $(shell rm -f $(LIBLUA_SO))  # ensure old local build doesn't cause confusion
  ifdef SHARED_LUA
-  SHARED_LUA_SUPPLIED=true
+  SHARED_LUA_SUPPLIED := true
   LIBLUA_SO := $(SHARED_LUA)
+  ifeq (,$(wildcard $(LIBLUA_SO)))
+   $(error Specified liblua file not found: LIBLUA_SO=$(LIBLUA_SO))
+  endif
  endif
 endif
 SHARED_FLAGS := -L "$(dir $(LIBLUA_SO))" -l:"$(notdir $(LIBLUA_SO))"
@@ -117,7 +120,7 @@ build-lua: build-lua-$(LUA_BUILD)
 fetch-lua-%: build/lua-%/Makefile ;
 build-lua-%: build/lua-%/install/lib/liblua.a  $(if $(SHARED_LUA), $(LIBLUA_SO)) ;
 
-ifndef SHARED_LUA_SUPPLIED
+ifeq ($(SHARED_LUA), yes)
  $(LIBLUA_SO): build/lua-$(LUA_BUILD)/install/lib/$(LIBLUA_SO)
 	cp $< $@
  build/lua-%/install/lib/$(LIBLUA_SO): build/lua-%/install/lib/liblua.a
