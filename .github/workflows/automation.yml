@@ -17,6 +17,7 @@ jobs:
       - name: Fetching
         run: make fetch
   test:
+    runs-on: ubuntu-latest
     needs: setup
     steps:
       - name: Testing
