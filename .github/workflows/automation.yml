@@ -3,18 +3,19 @@ run-name: ${{github.actor}} activity triggered automation workflow
 
 on:
   push:
-    branches: [ master ]
+    branches: [master]
   pull_request:
-    branches: [ master ]
+    branches: [master]
   workflow_dispatch:
 
 jobs:
   setup:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
       - name: Fetching
-      - run: make fetch
+        run: make fetch
   test:
     needs: setup
     steps:
