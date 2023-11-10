@@ -16,14 +16,15 @@ jobs:
         run: mkdir yottadb && cd yottadb && wget https://download.yottadb.com/ydbinstall.sh && chmod +x ydbinstall.sh && sudo ./ydbinstall.sh
       - name: Checkout MLua
         uses: actions/checkout@v4
-        path: main
+        with:
+          path: main
       - name: Fetching
         run: make fetch
   test:
     runs-on: ubuntu-latest
     needs: setup
     steps:
-      - run pwd && env
-      - run cd main
+      - run: pwd && env
+      - run: cd main
       - name: Testing
         run: make test
