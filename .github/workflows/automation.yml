@@ -1,6 +1,8 @@
 name: automation
 run-name: ${{github.actor}} activity triggered automation workflow
 
+# Handy linter: https://rhysd.github.io/actionlint/
+
 on:
   push:
     branches: [master,test_automation]
@@ -16,8 +18,6 @@ jobs:
         run: mkdir yottadb && cd yottadb && wget https://download.yottadb.com/ydbinstall.sh && chmod +x ydbinstall.sh && sudo ./ydbinstall.sh
       - name: Checkout MLua
         uses: actions/checkout@v4
-        with:
-          path: main
       - name: Fetching
         run: make fetch
   test:
@@ -25,6 +25,6 @@ jobs:
     needs: setup
     steps:
       - run: pwd && env
-      - run: cd main
+      - run: cd mlua
       - name: Testing
         run: make test
