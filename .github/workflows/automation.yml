@@ -20,4 +20,4 @@ jobs:
     needs: setup
     steps:
       - name: Testing
-      - run: make test
+        run: make test
