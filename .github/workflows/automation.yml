@@ -3,7 +3,7 @@ run-name: ${{github.actor}} activity triggered automation workflow
 
 on:
   push:
-    branches: [master]
+    branches: [master,test_automation]
   pull_request:
     branches: [master]
   workflow_dispatch:
@@ -12,6 +12,8 @@ jobs:
   setup:
     runs-on: ubuntu-latest
     steps:
+      - name: Install YottaDB
+        run: mkdir /tmp/tmp && cd /tmp/tmp && wget https://download.yottadb.com/ydbinstall.sh && chmod +x ydbinstall.sh && ./ydbinstall.sh
       - name: Checkout
         uses: actions/checkout@v4
       - name: Fetching
@@ -22,5 +24,3 @@ jobs:
     steps:
       - name: Testing
         run: make test
-
-#make a dummy change
