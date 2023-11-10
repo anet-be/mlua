@@ -262,7 +262,12 @@ anet-benchmarks: build test-build
 	$(MAKE) -C benchmarks anet-benchmarks
 
 #This also tests lua-yottadb with all Lua versions
-testall:
+fetchall: fetch-lua-yottadb
+	@echo Fetching supported Lua versions
+	@for lua in $(LUA_TEST_BUILDS); do \
+		$(MAKE) fetch LUA_BUILD=$$lua --no-print-directory || exit 1; \
+	done
+testall: fetchall
 	@echo
 	@echo Testing mlua and lua-yottadb with all Lua versions: $(LUA_TEST_BUILDS)
 	@for lua in $(LUA_TEST_BUILDS); do \
