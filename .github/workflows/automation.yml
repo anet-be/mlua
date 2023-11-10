@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install YottaDB
-        run: mkdir /tmp/tmp && cd /tmp/tmp && wget https://download.yottadb.com/ydbinstall.sh && chmod +x ydbinstall.sh && ./ydbinstall.sh
+        run: mkdir /tmp/tmp && cd /tmp/tmp && wget https://download.yottadb.com/ydbinstall.sh && chmod +x ydbinstall.sh && sudo ./ydbinstall.sh
       - name: Checkout
         uses: actions/checkout@v4
       - name: Fetching
