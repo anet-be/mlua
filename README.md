@@ -234,25 +234,21 @@ make install
 
 ## Testing
 
-To test MLua, simply type:
+To test MLua, simply type one of the following:
 
 ```shell
-make test
+make test       # basic MLua unit tests
+make testall    # test MLua against every supported version of Lua
+make benchmark  # perform a set of speed tests
 ```
 
-To perform a set of speed tests, do:
-
-```shell
-make benchmark
-```
-
-Some benchmarks are installed by the Makefile. Others will require manual installation of certain Lua modules: for example `luarocks install hmac` to get a SHA library for lua. But running `make benchmarks` will note these requirements for you. There is further comment on these benchmarks in the [benchmarks/README.md](benchmarks/README.md).
+Some benchmarks are automatically installed by the Makefile. Others will require manual installation of certain Lua modules: for example `luarocks install hmac` to get a SHA library for lua. But running `make benchmarks` will note these requirements for you. There is further comment on these benchmarks in the [benchmarks/README.md](benchmarks/README.md).
 
 ## Release
 
 To release a new version of MLua:
 
-- Test it first.
+- Test it first with `make testall`
 - Update the version number in `mlua.h` and the version history that precedes it.
 - To create a version tag in git and create a LuaRock, run:
 
