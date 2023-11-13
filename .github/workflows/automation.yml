@@ -17,12 +17,14 @@ jobs:
       - name: Checkout MLua
         uses: actions/checkout@v4
       - name: Identify supported Lua builds  # for use in cache key
-        run: make --eval='print-luas: ; @echo LUA_TEST_BUILDS=$(LUA_TEST_BUILDS)' print-luas >> "$GITHUB_ENV"
+        run: "make --eval='print-luas: ; @echo LUA_TEST_BUILDS=$(LUA_TEST_BUILDS)' print-luas >> $GITHUB_ENV"
       - name: Cache setup
         id: cache-setup
         uses: actions/cache@v3
         with:
-          path: [build/lua-*, lua-yottadb]
+          path: |
+            build/lua-*
+            lua-yottadb
           key: "${{runner.os}}-luas=${{LUA_TEST_BUILDS}}"
       - name: Install YottaDB prerequisites
         run: sudo apt-get install -y --no-install-recommends file binutils libelf1 libicu-dev nano wget ca-certificates
