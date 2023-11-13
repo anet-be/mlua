@@ -31,21 +31,20 @@ jobs:
           path: |
             build/lua-*
             lua-yottadb
-          key: "${{ runner.os }}-"
+          key: "${{ runner.os }}-${{ steps.luas.outputs.luas }}"
 
       - name: Fetching and building supported Lua versions
         if: steps.restore-cache.outputs.cache-hit != 'true'
         run: make buildall
 
       - name: Save cached Lua builds
+        if: steps.restore-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v3
         with:
           path: |
             build/lua-*
             lua-yottadb
           key: ${{ steps.restore-cache.outputs.cache-primary-key }}
-
-      - run: ls build
 
       - name: Testing
         run: make test
