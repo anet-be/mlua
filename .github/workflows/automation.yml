@@ -11,30 +11,38 @@ on:
   workflow_dispatch:
 
 jobs:
-  setup:
+  test:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout MLua
         uses: actions/checkout@v4
-      - name: Identify supported Lua builds  # for use in cache key
-        id: luas
-        run: "make --eval='print-luas: ; @echo luas=$(LUA_TEST_BUILDS)' print-luas >> $GITHUB_OUTPUT"
-      - name: Cache setup
-        id: cache-setup
-        uses: actions/cache@v3
-        with:
-          path: |
-            build/lua-*
-            lua-yottadb
-          key: "${{runner.os}}-luas=${{steps.luas.outputs.luas}}"
       - name: Install YottaDB prerequisites
         run: sudo apt-get install -y --no-install-recommends file binutils libelf1 libicu-dev nano wget ca-certificates
       - name: Install YottaDB
         run: mkdir -p ydb_setup && cd ydb_setup && wget https://download.yottadb.com/ydbinstall.sh && chmod +x ydbinstall.sh && sudo ./ydbinstall.sh
-      - name: Fetching supported Lua versions
-        run: make fetchall
-      - name: Fetching supported Lua versions
+      - name: Identify supported Lua builds  # for use in cache key
+        id: luas
+        run: "make --eval='print-luas: ; @echo luas=$(LUA_TEST_BUILDS)' print-luas >> $GITHUB_OUTPUT"
+
+      - name: Restore cached Lua builds
+        id: restore-cache
+        uses: actions/cache/restore@v3
+        with:
+          path: |
+            build/**
+          key: "${{runner.os}}-${{steps.luas.outputs.luas}}"
+
+      - name: Fetching and building supported Lua versions
+        if: steps.restore-cache.outputs.cache-hit != 'true'
         run: make buildall
+
+      - name: Save cached Lua builds
+        uses: actions/cache/save@v3
+        with:
+          path: |
+            build/lua-*
+            lua-yottadb
+          key: ${{ steps.restore-cache.outputs.cache-primary-key }}
 
       - run: pwd && env
       - run: ls
