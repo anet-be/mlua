@@ -29,7 +29,8 @@ jobs:
         uses: actions/cache/restore@v3
         with:
           path: |
-            build/**
+            build/lua-*
+            lua-yottadb
           key: "${{ runner.os }}-"
 
       - name: Fetching and building supported Lua versions
