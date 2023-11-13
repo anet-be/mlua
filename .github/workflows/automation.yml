@@ -30,7 +30,7 @@ jobs:
         with:
           path: |
             build/**
-          key: "${{runner.os}}-${{steps.luas.outputs.luas}}"
+          key: "${{ runner.os }}-
 
       - name: Fetching and building supported Lua versions
         if: steps.restore-cache.outputs.cache-hit != 'true'
