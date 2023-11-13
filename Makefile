@@ -267,6 +267,11 @@ fetchall: fetch-lua-yottadb
 	@for lua in $(LUA_TEST_BUILDS); do \
 		$(MAKE) fetch LUA_BUILD=$$lua --no-print-directory || exit 1; \
 	done
+buildall: fetchall
+	@echo Building supported Lua versions
+	@for lua in $(LUA_TEST_BUILDS); do \
+		$(MAKE) build-lua LUA_BUILD=$$lua --no-print-directory || exit 1; \
+	done
 testall: fetchall
 	@echo
 	@echo Testing mlua and lua-yottadb with all Lua versions: $(LUA_TEST_BUILDS)
