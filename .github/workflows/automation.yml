@@ -44,8 +44,7 @@ jobs:
             lua-yottadb
           key: ${{ steps.restore-cache.outputs.cache-primary-key }}
 
-      - run: pwd && env
-      - run: ls
+      - run: ls build
 
       - name: Testing
         run: make test
