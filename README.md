@@ -176,14 +176,6 @@ Here's what is going on in the installation above:
 - Line 2 `make` downloads and then builds the Lua language, then it builds MLua.
 - Line 3 `make install` copies mlua.xc and mlua.so, typically into $ydb_dist/plugin, and _yottadb.so and yottadb.lua into the system lua folders.
 
-If you also want to install the Lua version you just built into your system, do:
-
-```shell
-sudo make install-lua
-```
-
-You may also need to double-check that /usr/local/bin is in your path and/or run `hash lua` to refresh bash's cached PATH so it can find the new /usr/local/bin/lua.
-
 If you need to use a different Lua version or install into a non-standard YDB directory, change the last line to something like:
 
 ```shell
@@ -231,6 +223,16 @@ To update both MLua and lua-yottadb from the internet and build+install:
 make update
 make install
 ```
+
+### MLua as default Lua
+
+If you also want to install the Lua built by MLua into your system. But be aware that it is built as Position Independent Code (PIC), so it may be ever so slightly slower than any system Lua, typically at `/usr/bin/lua`. To install to your system:
+
+```shell
+sudo make install-lua
+```
+
+You may also need to double-check that /usr/local/bin is in your path and/or run `hash lua` to refresh bash's cached PATH so it can find the new /usr/local/bin/lua.
 
 ## Testing
 

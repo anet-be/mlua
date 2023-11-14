@@ -314,9 +314,8 @@ install-lua: build-lua
 	install -m755 -DT build/lua-$(LUA_BUILD)/install/bin/luac $(PREFIX)/bin/luac$(LUA_VERSION)
 	@echo
 	@echo "*** Note ***: Lua is now installed as $(PREFIX)/bin/lua$(LUA_VERSION)."
-	@echo "If you want it as your main Lua, symlink it like this (assuming ~/bin is in your path):"
-	@echo "  sudo ln -s $(PREFIX)/bin/lua$(LUA_VERSION) ~/bin/lua"
-	@echo "However, it is built as Position Independent Code (PIC), so it may be ever so slightly slower than the system lua."
+	@echo "Be aware that it is built as Position Independent Code (PIC), so it may be ever so slightly"
+	@echo "slower than any system lua, typically at /usr/bin/lua"
 	@echo
 
 remove:
