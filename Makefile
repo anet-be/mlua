@@ -273,6 +273,7 @@ buildall: fetchall
 		$(MAKE) build-lua LUA_BUILD=$$lua --no-print-directory || exit 1; \
 	done
 testall: fetchall
+	force_error
 	@echo
 	@echo Testing mlua and lua-yottadb with all Lua versions: $(LUA_TEST_BUILDS)
 	@for lua in $(LUA_TEST_BUILDS); do \

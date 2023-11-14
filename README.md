@@ -1,4 +1,3 @@
-
 # MLua - Lua for the MUMPS database
 
 ## Overview
