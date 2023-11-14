@@ -279,8 +279,6 @@ testall: fetchall
 		echo ; \
 		echo "*** Testing with Lua $$lua ***" ; \
 		$(MAKE) clean-lua-yottadb LUA_BUILD=$$lua --no-print-directory || exit 1; \
-		#Next line also tests lua-yottadb but don't need if it is tested by that project \
-		#$(MAKE) test-lua-yottadb LUA_BUILD=$$lua --no-print-directory || exit 1; \
 		$(MAKE) LUA_BUILD=$$lua all test || { rm -f _yottadb.so yottadb.lua; exit 1; }; \
 	done
 	$(MAKE) clean-lua-yottadb --no-print-directory  # ensure not built with any Lua version lest it confuse future builds with default Lua
