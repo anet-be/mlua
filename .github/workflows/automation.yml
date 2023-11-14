@@ -16,8 +16,6 @@ jobs:
     steps:
       - name: Checkout MLua
         uses: actions/checkout@v4
-      - name: Install YottaDB prerequisites
-        run: sudo apt-get install -y --no-install-recommends file binutils libelf1 libicu-dev nano wget ca-certificates
       - name: Install YottaDB
         run: mkdir -p ydb_setup && cd ydb_setup && wget https://download.yottadb.com/ydbinstall.sh && chmod +x ydbinstall.sh && sudo ./ydbinstall.sh
       - name: Identify supported Lua builds  # for use in cache key
