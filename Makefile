@@ -245,6 +245,9 @@ TMPDIR ?= /tmp
 tmpgld = $(TMPDIR)/mlua-test
 export ydb_gbldir=$(tmpgld)/db.gld
 
+# The following line is needed to run utf8 test in github's ubuntu runner
+export ydb_icu_version ?= $(shell pkg-config --modversion icu-io)
+
 #To run specific tests, do: make test TESTS="testBasics testReadme"
 test: build test-build
 	@# Ensure no M object files remain which were built with a different ydb_chset
