@@ -17,7 +17,7 @@ jobs:
       - name: Checkout MLua
         uses: actions/checkout@v4
       - name: Install YottaDB
-        run: mkdir -p ydb_setup && cd ydb_setup && wget https://download.yottadb.com/ydbinstall.sh && chmod +x ydbinstall.sh && sudo ./ydbinstall.sh
+        run: mkdir -p ydb_setup && cd ydb_setup && wget https://download.yottadb.com/ydbinstall.sh && chmod +x ydbinstall.sh && sudo ./ydbinstall.sh --utf8
       - name: Identify supported Lua builds  # for use in cache key
         id: luas
         run: "make --eval='print-luas: ; @echo luas=$(LUA_TEST_BUILDS)' print-luas >> $GITHUB_OUTPUT"
