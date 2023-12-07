@@ -90,7 +90,8 @@ FETCH_LIBREADLINE = $(if $(shell which apt-get), $(BECOME_ROOT) apt-get install 
 
 # Core build targets
 all: fetch build
-fetch: fetch-lua fetch-lua-yottadb			# Download files for build; no internet required after this
+fetch: fetch-lua fetch-lua-yottadb
+	@# Download files for build; no internet required after this
 build: build-lua build-lua-yottadb build-mlua
 update: update-mlua update-lua-yottadb
 
@@ -234,8 +235,11 @@ export LUA_CPATH:=./?.so;$(LUA_CPATH)
 export LUA_INIT:=
 #used to check that MLUA_INIT works:
 export MLUA_INIT:=inittest=1
-export ydb_routines:=tests $(ydb_dist)/libyottadbutil.so
 export ydb_xc_mlua:=tests/mlua.xc
+
+
+utf8:=$(shell echo $(ydb_chset) | grep -qi UTF-8 && echo utf8/)
+export ydb_routines:=tests $(ydb_dist)/$(utf8)libyottadbutil.so
 
 TMPDIR ?= /tmp
 tmpgld = $(TMPDIR)/mlua-test
@@ -243,6 +247,9 @@ export ydb_gbldir=$(tmpgld)/db.gld
 
 #To run specific tests, do: make test TESTS="testBasics testReadme"
 test: build test-build
+	@# Ensure no M object files remain which were built with a different ydb_chset
+	rm -f tests/*.o
+	@# Remove temporary global directories created by previous tests
 	rm $(tmpgld) -rf  &&  mkdir -p $(tmpgld)
 	cp tests/db.* $(tmpgld)/
 	@# pipe to cat below prevents yottadb mysteriously adding confusing linefeeds in the output
@@ -257,6 +264,8 @@ tests/db.gld tests/db.dat:
 	ydb_gbldir=tests/db.gld   bash tests/createdb.sh $(ydb_dist) $(tmpgld)/db.dat  >/dev/null
 	cp $(tmpgld)/db.dat tests/db.dat  # save it so later tests don't have to recreate it
 benchmarks benchmark: build test-build
+	@# Ensure no M object files remain which were built with a different ydb_chset
+	rm -f benchmarks/*.o
 	$(MAKE) -C benchmarks
 anet-benchmarks: build test-build
 	$(MAKE) -C benchmarks anet-benchmarks
@@ -274,12 +283,15 @@ buildall: fetchall
 	done
 testall: fetchall
 	@echo
-	@echo Testing mlua and lua-yottadb with all Lua versions: $(LUA_TEST_BUILDS)
-	@for lua in $(LUA_TEST_BUILDS); do \
-		echo ; \
-		echo "*** Testing with Lua $$lua ***" ; \
-		$(MAKE) clean-lua-yottadb LUA_BUILD=$$lua --no-print-directory || exit 1; \
-		$(MAKE) LUA_BUILD=$$lua all test || { rm -f _yottadb.so yottadb.lua; exit 1; }; \
+	@echo "Testing mlua with ydb_chset={M,UTF-8} and Lua versions: $(LUA_TEST_BUILDS)"
+	@for ydb_chset in M UTF-8; do \
+		export ydb_chset ; \
+		for lua in $(LUA_TEST_BUILDS); do \
+			echo ; \
+			echo "*** Testing Lua $$lua and ydb_chset=$$ydb_chset ***" ; \
+			$(MAKE) clean-lua-yottadb LUA_BUILD=$$lua --no-print-directory || exit 1; \
+			$(MAKE) LUA_BUILD=$$lua  all test  || { rm -f _yottadb.so yottadb.lua; exit 1; }; \
+		done \
 	done
 	$(MAKE) clean-lua-yottadb --no-print-directory  # ensure not built with any Lua version lest it confuse future builds with default Lua
 	@echo Successfully tested with Lua versions $(LUA_TEST_BUILDS)
