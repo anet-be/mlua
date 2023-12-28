@@ -383,10 +383,10 @@ $(shell mkdir -p build)			# So I don't need to do it in every target
 
 #Note: do not list build-lua and fetch-lua as .PHONY: this allows them to be used as prerequisites of real targets
 # (build-lua, at least, needs to be a prerequisite of anything that uses lua header files)
-.PHONY: fetch fetch-lua-yottadb update-lua-yottadb update-mlua fetch-lua-%
-.PHONY: build build-lua-yottadb build-lua-% build-mlua
+.PHONY: fetch fetch-lua-yottadb update-lua-yottadb update-mlua $(filter fetch-lua-%,$(MAKECMDGOALS))
+.PHONY: build build-lua-yottadb build-mlua $(filter build-lua-%,$(MAKECMDGOALS))
 .PHONY: benchmarks anet-benchmarks
 .PHONY: install install-lua
 .PHONY: rockspec release untag
 .PHONY: all test vars
-.PHONY: clean clean-luas clean-lua-% clean-lua-yottadb refresh
+.PHONY: clean clean-luas clean-lua-yottadb refresh $(filter clean-lua-%,$(MAKECMDGOALS))
