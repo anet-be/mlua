@@ -235,11 +235,9 @@ export LUA_CPATH:=./?.so;$(LUA_CPATH)
 export LUA_INIT:=
 #used to check that MLUA_INIT works:
 export MLUA_INIT:=inittest=1
+utf8:=$(if $(findstring -8,$(if $(ydb_chset),$(ydb_chset),$(gtm_chset))),/utf8)
+export ydb_routines:=tests $(ydb_dist)$(utf8)/libyottadbutil.so
 export ydb_xc_mlua:=tests/mlua.xc
-
-
-utf8:=$(shell echo $(ydb_chset) | grep -qi UTF-8 && echo utf8/)
-export ydb_routines:=tests $(ydb_dist)/$(utf8)libyottadbutil.so
 
 TMPDIR ?= /tmp
 tmpgld = $(TMPDIR)/mlua-test
