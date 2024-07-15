@@ -71,7 +71,7 @@ SHARED_FLAGS := -L "$(dir $(LIBLUA_SO))" -l:"$(notdir $(LIBLUA_SO))"
 # Select embed/shared option
 MLUA_FLAGS := $(if $(SHARED_LUA), $(SHARED_FLAGS), $(EMBED_FLAGS))
 
-YDB_INCLUDES = $(shell pkg-config --cflags yottadb)
+YDB_INCLUDES = -I$(ydb_dist)
 LUA_INCLUDES = -Ibuild/lua-$(LUA_BUILD)/install/include
 LUA_YOTTADB_INCLUDES = -I../lua-$(LUA_BUILD)/install/include
 LUA_YOTTADB_CFLAGS = -fPIC -std=c11 -pedantic -Wall -Werror -Wno-unknown-pragmas -Wno-discarded-qualifiers $(YDB_INCLUDES) $(LUA_YOTTADB_INCLUDES)

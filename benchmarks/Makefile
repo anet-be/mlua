@@ -3,8 +3,8 @@
 # ~~~ Variables of interest to user
 
 LUA := lua
-YDB_DIST := $(shell pkg-config --variable=prefix yottadb)
-YDB_INSTALL := $(YDB_DIST)/plugin
+ydb_dist ?= $(shell pkg-config --variable=prefix yottadb)
+YDB_INSTALL := $(ydb_dist)/plugin
 CC := gcc
 
 #Set make HIDE_PROCESS_TIME=1 to benchmark with a cleaner output that only shows real time
@@ -31,7 +31,7 @@ export ydb_gbldir=$(tmpgld).gld
 all: fetch benchmark
 benchmarks benchmark: mlua.xc lua-tools
 	rm -f $(tmpgld).gld $(tmpgld).dat
-	bash ../tests/createdb.sh $(YDB_DIST) $(tmpgld).dat >/dev/null 2>&1
+	bash ../tests/createdb.sh $(ydb_dist) $(tmpgld).dat >/dev/null 2>&1
 	@# pipe to cat below prevents yottadb weirdly adding linefeeds into some lua stdout messages
 	yottadb -run benchmark $(TESTS) | cat
 # alternative target for users who have access to ANET tools cmumps and qtechng
@@ -86,7 +86,7 @@ brocr.go:
 
 # ~~~ cmumps: fetch and build it if it is accessible
 CFLAGS = -std=c99 -pedantic -Wall -Wno-unknown-pragmas
-GTM_INCLUDES=-I$(YDB_DIST) -L$(YDB_DIST) -lyottadb -Wl,-rpath,$(YDB_DIST)
+GTM_INCLUDES=-I$(ydb_dist) -L$(ydb_dist) -lyottadb -Wl,-rpath,$(ydb_dist)
 UTF8PROC=utf8proc/utf8proc.c
 MBEDTLS=mbedtls/sha1.c mbedtls/sha512.c mbedtls/aes.c mbedtls/base64.c
 
