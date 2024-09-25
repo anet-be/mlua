@@ -165,14 +165,19 @@ To install MLua itself:
 ```shell
 git clone `<mlua repository>`  # fetch this code repository
 cd mlua
-export LUA_BUILD=5.4.4  # optional: build against a version of Lua other than the default
 make                    # download and then build the Lua language, then build MLua
-sudo make install
+sudo make install       # install to the system
 ```
 
 ### Explanation
 
 The final line above copies mlua.xc and mlua.so, typically into $ydb_dist/plugin, and _yottadb.so and yottadb.lua into the system's Lua directories.
+
+If you need to build against a version of Lua other than the default, e.g. Lua 5.1.5:
+
+```sh
+sudo make LUA_BUILD=5.1.5 && sudo make LUA_BUILD=5.1.5 install
+```
 
 If you need to install into a non-standard YDB directory, or library directory other than `/usr/local` (say `~/.local`), change the last line to something like:
 
