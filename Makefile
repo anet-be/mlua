@@ -10,7 +10,7 @@ SHARED_LUA:=
 
 # Select which specific version of lua to download and build MLua against, eg: 5.4.4, 5.3.6, 5.2.4
 # MLua works with lua >=5.2; older versions have not been tested
-LUA_BUILD:=5.4.4
+LUA_BUILD?=5.4.4
 
 # Calculate just the Major.Minor and store in LUA_VERSION:
 # first replace dots with spaces

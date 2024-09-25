@@ -163,23 +163,21 @@ Install YottaDB per the [Quick Start](https://docs.yottadb.com/MultiLangProgGuid
 To install MLua itself:
 
 ```shell
-git clone `<mlua repository>` mlua
-cd mlua && make
-sudo make install       # install MLua
+git clone `<mlua repository>`  # fetch this code repository
+cd mlua
+export LUA_BUILD=5.4.4  # optional: build against a version of Lua other than the default
+make                    # download and then build the Lua language, then build MLua
+sudo make install
 ```
 
 ### Explanation
 
-Here's what is going on in the installation above:
+The final line above copies mlua.xc and mlua.so, typically into $ydb_dist/plugin, and _yottadb.so and yottadb.lua into the system's Lua directories.
 
-- Line 1 `git clone` fetches the MLua code.
-- Line 2 `make` downloads and then builds the Lua language, then it builds MLua.
-- Line 3 `make install` copies mlua.xc and mlua.so, typically into $ydb_dist/plugin, and _yottadb.so and yottadb.lua into the system lua folders.
-
-If you need to use a different Lua version or install into a non-standard YDB directory, change the last line to something like:
+If you need to install into a non-standard YDB directory, or library directory other than `/usr/local` (say `~/.local`), change the last line to something like:
 
 ```shell
-make install LUA_BUILD=5.x.x YDB_DEST=<your_ydb_plugin_directory> PREFIX=~/.local
+make install YDB_INSTALL=<your_ydb_plugin_directory> PREFIX=~/.local
 ```
 
 MLua is implemented as a shared library mlua.so which also embeds Lua and the Lua library. There is no need to install Lua separately.
