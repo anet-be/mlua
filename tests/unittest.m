@@ -13,6 +13,7 @@ run()
 test(testList)
  new command
  set luaVersion=$$lua("return _VERSION")
+ set luayottadbVersion=$$lua("ydb = require 'yottadb' return ydb._VERSION")
  do assertFatal(""=luaVersion,0,"Lua returned nothing for global _VERSION!")
  set luaVersion=$piece(luaVersion," ",2)
  w "MLua is built using Lua ",luaVersion,!
@@ -25,7 +26,7 @@ test(testList)
  .do
  ..new $etrap,error
  ..set $etrap="set error=$ecode  if error["",M13,Z150373194,"" set skipped=skipped+1,$ecode="""""  ; ignore invalid tests names
- ..new (command,fail,skipped,luaVersion)  ;delete all unnecessary locals before each test
+ ..new (command,fail,skipped,luaVersion,luayottadbVersion)  ;delete all unnecessary locals before each test
  ..w command,!
  ..do assert(0,$&mlua.close())  ;close all Lua states to make sure every test starts fresh
  ..do lua("ydb = require 'yottadb'")
@@ -160,6 +161,7 @@ testTreeHeight()
  set ^oaks(3,"shadow")=15,^("angle")=45
 
  set expected="^oaks(1,'angle')=30$^oaks(1,'shadow')=10$^oaks(2,'angle')=30$^oaks(2,'shadow')=13$^oaks(3,'angle')=45$^oaks(3,'shadow')=15"
+ if luayottadbVersion>=3 set expected="^oaks$"_expected  ; Account for lua-yottadb version>3 dump prints varname first
  set expected=$translate(expected,"'$",$C(34)_$C(10)) ;convert ' to ", and $ to newline
  do assert(expected,$$lua("return ydb.dump('^oaks')"))
  do lua("dofile 'tree_height.lua'")
@@ -167,6 +169,7 @@ testTreeHeight()
  ;Lua <5.3 displays height float 15.0 as 15:
  set expectedHeight=$select(luaVersion<5.3:"15",1:"15.0")
  set expected="^oaks(1,'angle')=30$^oaks(1,'height')=5.7735026918963$^oaks(1,'shadow')=10$^oaks(2,'angle')=30$^oaks(2,'height')=7.5055534994651$^oaks(2,'shadow')=13$^oaks(3,'angle')=45$^oaks(3,'height')="_expectedHeight_"$^oaks(3,'shadow')=15"
+ if luayottadbVersion>=3 set expected="^oaks$"_expected  ; Account for lua-yottadb version>3 dump prints varname first
  set expected=$translate(expected,"'$",$C(34)_$C(10)) ;convert ' to ", and $ to newline
  do assert(expected,$$lua("return ydb.dump('^oaks')"))
  quit
