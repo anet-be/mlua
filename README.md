@@ -176,7 +176,7 @@ The final line above copies mlua.xc and mlua.so, typically into $ydb_dist/plugin
 If you need to build against a version of Lua other than the default, e.g. Lua 5.1.5:
 
 ```sh
-sudo make LUA_BUILD=5.1.5 && sudo make LUA_BUILD=5.1.5 install
+make LUA_BUILD=5.1.5 && sudo make LUA_BUILD=5.1.5 install
 ```
 
 If you need to install into a non-standard YDB directory, or library directory other than `/usr/local` (say `~/.local`), change the last line to something like:
