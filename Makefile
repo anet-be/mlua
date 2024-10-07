@@ -8,9 +8,10 @@
 # A shared library version may be needed, for example, to build apache's mod_lua so that it uses the same libluaX.Y.so
 SHARED_LUA:=
 
-# Select which specific version of lua to download and build MLua against, eg: 5.4.4, 5.3.6, 5.2.4
-# MLua works with lua >=5.2; older versions have not been tested
-LUA_BUILD?=5.4.4
+# Select which specific version of lua to download and build MLua against.
+# Also see LUA_TEST_BUILDS below
+# MLua works with lua >=5.1; older versions have not been tested
+LUA_BUILD?=5.4.7
 
 # Calculate just the Major.Minor and store in LUA_VERSION:
 # first replace dots with spaces
@@ -224,7 +225,7 @@ cleanest: clean
 
 # ~~~ Test
 
-LUA_TEST_BUILDS:=5.1.5 5.2.4 5.3.6 5.4.4
+LUA_TEST_BUILDS:=5.1.5 5.2.4 5.3.6 5.4.7
 
 #Ensure tests use our own build of yottadb, not the system one
 #Lua5.1 chokes on too many ending semicolons, so don't add them unless it's empty
